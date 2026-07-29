@@ -1,0 +1,358 @@
+generator client {
+  provider      = "prisma-client-js"
+  // Pin the output to the root node_modules so Render never writes a stale
+  // copy into server/node_modules/.prisma/client (which can't initialize).
+  output        = "../node_modules/.prisma/client"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum OrgType {
+  TUTOR
+  ACADEMY
+}
+
+enum UserRole {
+  ADMIN
+  TEACHER
+  TUTOR
+}
+
+enum AttendancePolicy {
+  PAID_ABSENCE
+  FLEXIBLE
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  WARNING
+  EXPIRED
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  EXCUSED
+}
+
+enum PaymentType {
+  SUBSCRIPTION
+  DROP_IN
+  REFUND
+}
+
+enum PaymentMethod {
+  CASH
+  BANK_TRANSFER
+  CCP
+  OTHER
+}
+
+enum RequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum EnrollmentStatus {
+  ACTIVE
+  PAUSED
+  ENDED
+}
+
+model Organization {
+  id                      String           @id @default(cuid())
+  name                    String
+  type                    OrgType
+  locale                  String           @default("en")
+  currency                String           @default("DZD")
+  logoUrl                 String?
+  premiumExpiresAt        DateTime?
+  premiumTrialUsed        Boolean          @default(false)
+  attendancePolicyDefault AttendancePolicy @default(PAID_ABSENCE)
+  createdAt               DateTime         @default(now())
+  updatedAt               DateTime         @updatedAt
+
+  users             User[]
+  subjects          Subject[]
+  students          Student[]
+  classes           Class[]
+  subscriptionPlans SubscriptionPlan[]
+  payments          Payment[]
+  expenses          Expense[]
+  auditLogs         AuditLog[]
+  subscriptionRequests SubscriptionRequest[]
+}
+
+model User {
+  id        String   @id @default(cuid())
+  orgId     String
+  email     String   @unique
+  name      String
+  phone     String?
+  role      UserRole
+  passwordHash String?
+  premiumKey String?
+  premiumActivatedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  classes      Class[]
+  attendances  Attendance[]
+  schedules    Schedule[]
+  auditLogs    AuditLog[]
+  subscriptionRequests SubscriptionRequest[]
+
+  @@index([orgId])
+}
+
+model Subject {
+  id        String   @id @default(cuid())
+  orgId     String
+  name      String
+  code      String?
+  createdAt DateTime @default(now())
+
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  classes      Class[]
+
+  @@index([orgId])
+}
+
+model Student {
+  id        String   @id @default(cuid())
+  orgId     String
+  firstName String
+  lastName  String
+  phone     String?
+  email     String?
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization  Organization   @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  enrollments   Enrollment[]
+  attendances   Attendance[]
+  payments      Payment[]
+  notifications Notification[]
+
+  @@index([orgId])
+  @@index([orgId, lastName])
+}
+
+model Class {
+  id          String   @id @default(cuid())
+  orgId       String
+  subjectId   String
+  teacherId   String
+  name        String
+  maxCapacity Int      @default(20)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  subject      Subject      @relation(fields: [subjectId], references: [id])
+  teacher      User         @relation(fields: [teacherId], references: [id])
+  enrollments  Enrollment[]
+  sessions     Session[]
+  schedules    Schedule[]
+
+  @@index([orgId])
+  @@index([teacherId])
+}
+
+model Enrollment {
+  id        String           @id @default(cuid())
+  studentId String
+  classId   String
+  status    EnrollmentStatus @default(ACTIVE)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  student       Student        @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  class         Class          @relation(fields: [classId], references: [id], onDelete: Cascade)
+  subscriptions Subscription[]
+
+  @@unique([studentId, classId])
+  @@index([classId])
+}
+
+model SubscriptionPlan {
+  id               String           @id @default(cuid())
+  orgId            String
+  name             String
+  sessionsCount    Int
+  price            Float
+  currency         String           @default("DZD")
+  attendancePolicy AttendancePolicy @default(PAID_ABSENCE)
+  createdAt        DateTime         @default(now())
+
+  organization  Organization   @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  subscriptions Subscription[]
+
+  @@index([orgId])
+}
+
+model Subscription {
+  id                String             @id @default(cuid())
+  enrollmentId      String
+  planId            String
+  sessionsTotal     Int
+  sessionsUsed      Int                @default(0)
+  sessionsRemaining Int
+  status            SubscriptionStatus @default(ACTIVE)
+  startsAt          DateTime           @default(now())
+  expiresAt         DateTime?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  enrollment  Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  plan        SubscriptionPlan @relation(fields: [planId], references: [id])
+  attendances Attendance[]
+  payments    Payment[]
+
+  @@index([status, sessionsRemaining])
+  @@index([enrollmentId])
+}
+
+model Session {
+  id          String   @id @default(cuid())
+  classId     String
+  scheduledAt DateTime
+  status      String   @default("scheduled")
+  createdAt   DateTime @default(now())
+
+  class       Class        @relation(fields: [classId], references: [id], onDelete: Cascade)
+  attendances Attendance[]
+
+  @@index([classId, scheduledAt])
+}
+
+model Attendance {
+  id                      String           @id @default(cuid())
+  sessionId               String
+  subscriptionId          String?
+  studentId               String
+  status                  AttendanceStatus @default(PRESENT)
+  countedTowardSubscription Boolean        @default(true)
+  isDropIn                Boolean          @default(false)
+  isUnpaid                Boolean          @default(false)
+  markedById              String?
+  markedAt                DateTime         @default(now())
+
+  session      Session       @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  subscription Subscription? @relation(fields: [subscriptionId], references: [id])
+  student      Student       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  markedBy     User?         @relation(fields: [markedById], references: [id])
+
+  @@unique([sessionId, studentId])
+  @@index([studentId])
+  @@index([subscriptionId])
+}
+
+model Payment {
+  id             String        @id @default(cuid())
+  orgId          String
+  studentId      String
+  subscriptionId String?
+  amount         Float
+  currency       String        @default("DZD")
+  method         PaymentMethod @default(CASH)
+  type           PaymentType   @default(SUBSCRIPTION)
+  receiptUrl     String?
+  paidAt         DateTime      @default(now())
+  createdAt      DateTime      @default(now())
+
+  organization Organization  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  student      Student       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  subscription Subscription? @relation(fields: [subscriptionId], references: [id])
+
+  @@index([orgId, paidAt])
+}
+
+model Expense {
+  id          String   @id @default(cuid())
+  orgId       String
+  category    String
+  amount      Float
+  description String?
+  recurring   Boolean  @default(false)
+  expenseDate DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, expenseDate])
+}
+
+model Schedule {
+  id        String  @id @default(cuid())
+  classId   String
+  teacherId String?
+  dayOfWeek Int
+  startTime String
+  endTime   String
+  notes     String?
+
+  class   Class @relation(fields: [classId], references: [id], onDelete: Cascade)
+  teacher User? @relation(fields: [teacherId], references: [id])
+
+  @@index([classId])
+  @@index([teacherId])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  studentId String
+  type      String
+  channel   String   @default("app")
+  message   String
+  sentAt    DateTime?
+  status    String   @default("pending")
+  createdAt DateTime @default(now())
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId, status])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  orgId      String
+  userId     String?
+  action     String
+  entityType String
+  entityId   String
+  payload    String?
+  createdAt  DateTime @default(now())
+
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user         User?        @relation(fields: [userId], references: [id])
+
+  @@index([orgId, createdAt])
+}
+
+model SubscriptionRequest {
+  id         String       @id @default(cuid())
+  orgId      String
+  userId     String
+  planId     String?
+  amount     Float
+  currency   String       @default("DZD")
+  proofUrl   String?
+  status     RequestStatus @default(PENDING)
+  reason     String?
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id])
+
+  @@index([orgId, status])
+}

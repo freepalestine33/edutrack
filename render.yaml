@@ -1,0 +1,30 @@
+services:
+  # Backend API Service
+  - type: web
+    name: edutrack-api
+    env: node
+    # rm any stale nested node_modules left by older builds / build cache,
+    # so Node resolves @prisma/client from the root only.
+    buildCommand: rm -rf server/node_modules && npm install && npx prisma generate
+    startCommand: npx tsx server/index.ts
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: PORT
+        value: 3001
+      - key: AUTH_SECRET
+        generateValue: true
+      - key: NODE_ENV
+        value: production
+
+  # Frontend Service
+  - type: web
+    name: edutrack-frontend
+    env: static
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_API_BASE_URL
+        value: https://edutrack-backend-0tfo.onrender.com
+      - key: VITE_TELEGRAM_LINK
+        value: https://t.me/ysngr33
