@@ -131,7 +131,6 @@ export function GroupSessionPage() {
 
   const presentCount = attendances.filter((a) => a.status === 'PRESENT').length
   const absentCount = attendances.filter((a) => a.status === 'ABSENT').length
-  const unpaidCount = attendances.filter((a) => a.status === 'PRESENT' && a.isUnpaid).length
   const unmarkedCount = enrollments.length - presentCount - absentCount
   const totalEnrolled = enrollments.length
 
@@ -232,12 +231,6 @@ export function GroupSessionPage() {
           <p className="text-2xl font-black text-red-500">{absentCount}</p>
           <p className="text-xs font-semibold text-red-500/80 uppercase tracking-wide mt-0.5">
             {t('attendance.absent')}
-          </p>
-        </div>
-        <div className="rounded-xl bg-amber-500/10 border border-amber-500/20 p-3 text-center">
-          <p className="text-2xl font-black text-amber-600 dark:text-amber-400">{unpaidCount}</p>
-          <p className="text-xs font-semibold text-amber-600/80 dark:text-amber-400/80 uppercase tracking-wide mt-0.5">
-            {t('groups.unpaid')}
           </p>
         </div>
         <div className="rounded-xl bg-surface border border-border/60 p-3 text-center">

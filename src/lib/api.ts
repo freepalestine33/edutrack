@@ -215,11 +215,11 @@ export interface SessionItem {
 export interface Attendance {
   id: string
   sessionId: string
+  subscriptionId: string | null
   studentId: string
   status: 'PRESENT' | 'ABSENT'
   countedTowardSubscription: boolean
   isDropIn: boolean
-  isUnpaid: boolean
 }
 
 export interface ScheduleItem {

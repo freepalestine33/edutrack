@@ -241,7 +241,6 @@ model Attendance {
   status                  AttendanceStatus @default(PRESENT)
   countedTowardSubscription Boolean        @default(true)
   isDropIn                Boolean          @default(false)
-  isUnpaid                Boolean          @default(false)
   markedById              String?
   markedAt                DateTime         @default(now())
 

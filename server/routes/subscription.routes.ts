@@ -82,7 +82,6 @@ subscriptionRouter.post('/classes/:id/subscriptions', requireAuth, async (req, r
         const renewalData = await buildRenewalData(
           { ...existingSubscription, enrollmentId },
           plan,
-          enrollment.studentId,
           tx,
         )
         return tx.subscription.update({

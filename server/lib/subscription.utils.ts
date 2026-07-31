@@ -73,14 +73,6 @@ export function buildNewSubscriptionData(plan: { id: string; sessionsCount: numb
 
 /**
  * Build the data object for renewing / extending an existing subscription.
- *
- * BUG‑FIX: previous code used `existing.enrollmentId` in the attendance
- * `where.studentId` clause — that was wrong. We now accept the real
- * `studentId` and use it for the unpaid‑attendance lookup.
- *
- * BUG‑FIX: `sessionsTotal` was computed as `sessionsUsed + sessionsRemaining`
- * which double‑counts carried‑over sessions. Now it equals the new plan's
- * `sessionsCount` plus any carry‑over minus unpaid deductions.
  */
 export async function buildRenewalData(
   existing: {
@@ -92,7 +84,6 @@ export async function buildRenewalData(
     expiresAt: Date | null
   },
   plan: { id: string; sessionsCount: number },
-  studentId: string,
   dbClient: any = prisma,
 ) {
   // Count sessions actually used on the old subscription so far
@@ -100,35 +91,9 @@ export async function buildRenewalData(
     where: { subscriptionId: existing.id, countedTowardSubscription: true },
   })
 
-  // Find unpaid attendances for this student that will be covered by this renewal
-  const unpaidAttendances = await dbClient.attendance.findMany({
-    where: {
-      studentId,
-      isUnpaid: true,
-      status: 'PRESENT',
-    },
-  })
-  const unpaidCount = unpaidAttendances.length
-
-  // Mark unpaid attendances as paid & link to existing subscription
-  if (unpaidCount > 0) {
-    await dbClient.attendance.updateMany({
-      where: {
-        studentId,
-        isUnpaid: true,
-        status: 'PRESENT',
-      },
-      data: {
-        isUnpaid: false,
-        countedTowardSubscription: true,
-        subscriptionId: existing.id,
-      },
-    })
-  }
-
   // Total sessions cumulative = existing total + new plan sessions
   const sessionsTotal = existing.sessionsTotal + plan.sessionsCount
-  const sessionsUsed = oldSessionsUsed + unpaidCount
+  const sessionsUsed = oldSessionsUsed
   const sessionsRemaining = Math.max(0, sessionsTotal - sessionsUsed)
 
   const now = new Date()

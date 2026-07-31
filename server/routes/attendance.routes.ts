@@ -60,22 +60,6 @@ attendanceRouter.post('/attendance', requireAuth, async (req, res) => {
     const policy = subscription?.plan.attendancePolicy ?? 'PAID_ABSENCE'
     const counted = status === 'PRESENT' || (status === 'ABSENT' && policy === 'PAID_ABSENCE')
 
-    let isUnpaid = false
-    if (subscription && status === 'PRESENT' && !isDropIn) {
-      // Exclude current sessionId from count when checking remaining capacity
-      const usedOther = await prisma.attendance.count({
-        where: {
-          subscriptionId: subscription.id,
-          countedTowardSubscription: true,
-          NOT: { sessionId },
-        },
-      })
-      const remainingBeforeThisSession = subscription.sessionsTotal - usedOther
-      isUnpaid = remainingBeforeThisSession <= 0
-    } else if (!subscription && status === 'PRESENT' && !isDropIn) {
-      isUnpaid = true
-    }
-
     const attendance = await prisma.attendance.upsert({
       where: { sessionId_studentId: { sessionId, studentId } },
       create: {
@@ -83,15 +67,13 @@ attendanceRouter.post('/attendance', requireAuth, async (req, res) => {
         studentId,
         subscriptionId: subscription?.id,
         status,
-        countedTowardSubscription: counted && !isDropIn && !isUnpaid,
+        countedTowardSubscription: counted && !isDropIn,
         isDropIn: !!isDropIn,
-        isUnpaid,
         markedById: req.auth!.id,
       },
       update: {
         status,
-        countedTowardSubscription: counted && !isDropIn && !isUnpaid,
-        isUnpaid,
+        countedTowardSubscription: counted && !isDropIn,
         markedById: req.auth!.id,
       },
     })
