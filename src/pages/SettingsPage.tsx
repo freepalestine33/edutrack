@@ -1,10 +1,9 @@
 import { useTranslation } from 'react-i18next'
 import { LogOut, User, Sun, Globe, Building2, Shield } from 'lucide-react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Label, Select } from '@/components/ui/Input'
-import { Button } from '@/components/ui/Button'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { PageHeader } from '@/components/PageHeader'
+import { GlassPanel, GlassButton } from '@/components/ui/GlassPanel'
 import { useAppStore, type Locale } from '@/store/app'
 import { usePremium } from '@/lib/premium'
 
@@ -39,16 +38,14 @@ export function SettingsPage() {
 
       <div className="grid gap-6 md:grid-cols-2">
         {/* Profile Section */}
-        <Card className="hover:shadow-lg transition-shadow">
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg bg-accent/10 flex items-center justify-center text-accent">
-                <User className="w-4 h-4" />
-              </div>
-              <CardTitle>{t('settings.profile')}</CardTitle>
+        <GlassPanel className="p-6 hover:scale-[1.02] transition-transform">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white">
+              <User className="w-5 h-5" />
             </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
+            <h3 className="text-lg font-semibold text-foreground">{t('settings.profile')}</h3>
+          </div>
+          <div className="space-y-4">
             <div className="p-3 rounded-xl bg-surface">
               <p className="text-xs text-muted">{t('onboarding.yourName')}</p>
               <p className="font-medium text-foreground mt-0.5">{userName || '—'}</p>
@@ -57,20 +54,18 @@ export function SettingsPage() {
               <p className="text-xs text-muted">{t('onboarding.email')}</p>
               <p className="font-medium text-foreground mt-0.5">{email || '—'}</p>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </GlassPanel>
 
         {/* Organization Section */}
-        <Card className="hover:shadow-lg transition-shadow">
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg bg-accent/10 flex items-center justify-center text-accent">
-                <Building2 className="w-4 h-4" />
-              </div>
-              <CardTitle>{t('settings.organization')}</CardTitle>
+        <GlassPanel className="p-6 hover:scale-[1.02] transition-transform">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center text-white">
+              <Building2 className="w-5 h-5" />
             </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
+            <h3 className="text-lg font-semibold text-foreground">{t('settings.organization')}</h3>
+          </div>
+          <div className="space-y-4">
             <div className="p-3 rounded-xl bg-surface">
               <p className="text-xs text-muted">{t('onboarding.orgName')}</p>
               <p className="font-medium text-foreground mt-0.5">{orgName || '—'}</p>
@@ -79,36 +74,32 @@ export function SettingsPage() {
               <p className="text-xs text-muted">{t('settings.orgType')}</p>
               <p className="font-medium text-foreground mt-0.5 capitalize">{orgType || 'tutor'}</p>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </GlassPanel>
 
         {/* Appearance Section */}
-        <Card className="hover:shadow-lg transition-shadow">
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg bg-accent/10 flex items-center justify-center text-accent">
-                <Sun className="w-4 h-4" />
-              </div>
-              <CardTitle>{t('settings.appearance')}</CardTitle>
+        <GlassPanel className="p-6 hover:scale-[1.02] transition-transform">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-yellow-500 to-orange-600 flex items-center justify-center text-white">
+              <Sun className="w-5 h-5" />
             </div>
-          </CardHeader>
-          <CardContent>
+            <h3 className="text-lg font-semibold text-foreground">{t('settings.appearance')}</h3>
+          </div>
+          <div>
             <Label>{t('settings.theme')}</Label>
             <ThemeToggle className="mt-2" />
-          </CardContent>
-        </Card>
+          </div>
+        </GlassPanel>
 
         {/* Language Section */}
-        <Card className="hover:shadow-lg transition-shadow">
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg bg-accent/10 flex items-center justify-center text-accent">
-                <Globe className="w-4 h-4" />
-              </div>
-              <CardTitle>{t('settings.language')}</CardTitle>
+        <GlassPanel className="p-6 hover:scale-[1.02] transition-transform">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-green-500 to-teal-600 flex items-center justify-center text-white">
+              <Globe className="w-5 h-5" />
             </div>
-          </CardHeader>
-          <CardContent>
+            <h3 className="text-lg font-semibold text-foreground">{t('settings.language')}</h3>
+          </div>
+          <div>
             <Label>{t('settings.language')}</Label>
             <Select
               value={locale}
@@ -120,49 +111,37 @@ export function SettingsPage() {
                 </option>
               ))}
             </Select>
-          </CardContent>
-        </Card>
+          </div>
+        </GlassPanel>
       </div>
 
       {/* Subscription Info */}
-      <Card className="hover:shadow-lg transition-shadow">
-        <CardHeader>
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-accent/10 flex items-center justify-center text-accent">
-              <Shield className="w-4 h-4" />
-            </div>
-            <CardTitle>{t('settings.subscription')}</CardTitle>
+      <GlassPanel variant="accent" className="p-6 hover:scale-[1.02] transition-transform">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-accent to-accent/80 flex items-center justify-center text-white">
+            <Shield className="w-5 h-5" />
           </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="p-3 rounded-xl bg-surface">
-            <p className="text-xs text-muted">{t('settings.expiresAt')}</p>
-            <p className="font-medium text-foreground mt-0.5">{formatDate(premium.expiresAt)}</p>
-          </div>
-        </CardContent>
-      </Card>
+          <h3 className="text-lg font-semibold text-foreground">{t('settings.subscription')}</h3>
+        </div>
+        <div className="p-3 rounded-xl bg-surface">
+          <p className="text-xs text-muted">{t('settings.expiresAt')}</p>
+          <p className="font-medium text-foreground mt-0.5">{formatDate(premium.expiresAt)}</p>
+        </div>
+      </GlassPanel>
 
       {/* Danger Zone */}
-      <Card className="border-red-500/20 hover:shadow-lg transition-shadow">
-        <CardHeader>
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-red-500/10 flex items-center justify-center text-red-500">
-              <LogOut className="w-4 h-4" />
-            </div>
-            <CardTitle className="text-red-500">{t('settings.dangerZone')}</CardTitle>
+      <GlassPanel variant="danger" className="p-6 hover:scale-[1.02] transition-transform">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-500 to-red-600 flex items-center justify-center text-white">
+            <LogOut className="w-5 h-5" />
           </div>
-        </CardHeader>
-        <CardContent>
-          <Button
-            variant="danger"
-            onClick={handleLogout}
-            className="w-full"
-          >
-            <LogOut className="w-4 h-4 mr-2" />
-            {t('settings.logout')}
-          </Button>
-        </CardContent>
-      </Card>
+          <h3 className="text-lg font-semibold text-red-500">{t('settings.dangerZone')}</h3>
+        </div>
+        <GlassButton variant="danger" onClick={handleLogout} className="w-full">
+          <LogOut className="w-4 h-4 mr-2" />
+          {t('settings.logout')}
+        </GlassButton>
+      </GlassPanel>
     </div>
   )
 }

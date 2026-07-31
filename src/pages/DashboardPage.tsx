@@ -1,12 +1,11 @@
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { Users, CheckCircle2, AlertTriangle, XCircle, ChevronRight, Calendar } from 'lucide-react'
+import { Users, CheckCircle2, AlertTriangle, XCircle, ChevronRight, Calendar, TrendingUp, TrendingDown } from 'lucide-react'
 import { api } from '@/lib/api'
-import { StatCard, MoneyStat } from '@/components/StatCard'
 import { StatusBadge } from '@/components/StatusBadge'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
 import { PageHeader, LoadingState } from '@/components/PageHeader'
+import { GlassPanel } from '@/components/ui/GlassPanel'
 
 export function DashboardPage() {
   const { t } = useTranslation()
@@ -23,18 +22,79 @@ export function DashboardPage() {
 
       {stats && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard label={t('dashboard.students')} value={stats.students} icon={Users} />
-          <StatCard label={t('dashboard.active')} value={stats.active} variant="success" icon={CheckCircle2} />
-          <StatCard label={t('dashboard.warning')} value={stats.warning} variant="warning" icon={AlertTriangle} />
-          <StatCard label={t('dashboard.expired')} value={stats.expired} variant="danger" icon={XCircle} />
+          <GlassPanel className="p-6">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white">
+                <Users className="w-5 h-5" />
+              </div>
+              <p className="text-sm text-muted">{t('dashboard.students')}</p>
+            </div>
+            <p className="text-3xl font-bold text-foreground">{stats.students}</p>
+          </GlassPanel>
+          
+          <GlassPanel className="p-6">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center text-white">
+                <CheckCircle2 className="w-5 h-5" />
+              </div>
+              <p className="text-sm text-muted">{t('dashboard.active')}</p>
+            </div>
+            <p className="text-3xl font-bold text-foreground">{stats.active}</p>
+          </GlassPanel>
+          
+          <GlassPanel className="p-6">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-yellow-500 to-yellow-600 flex items-center justify-center text-white">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <p className="text-sm text-muted">{t('dashboard.warning')}</p>
+            </div>
+            <p className="text-3xl font-bold text-foreground">{stats.warning}</p>
+          </GlassPanel>
+          
+          <GlassPanel className="p-6">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-500 to-red-600 flex items-center justify-center text-white">
+                <XCircle className="w-5 h-5" />
+              </div>
+              <p className="text-sm text-muted">{t('dashboard.expired')}</p>
+            </div>
+            <p className="text-3xl font-bold text-foreground">{stats.expired}</p>
+          </GlassPanel>
         </div>
       )}
 
       {stats && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <MoneyStat label={t('dashboard.revenue')} amount={stats.revenue} />
-          <MoneyStat label={t('dashboard.expenses')} amount={stats.expenses} />
-          <StatCard label={t('dashboard.profit')} value={`${stats.profit.toLocaleString()} DZD`} variant={stats.profit >= 0 ? 'success' : 'danger'} />
+          <GlassPanel variant="accent" className="p-6">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-green-400 to-green-500 flex items-center justify-center text-white">
+                <TrendingUp className="w-5 h-5" />
+              </div>
+              <p className="text-sm text-muted">{t('dashboard.revenue')}</p>
+            </div>
+            <p className="text-2xl font-bold text-foreground">{stats.revenue.toLocaleString()} DZD</p>
+          </GlassPanel>
+          
+          <GlassPanel variant="accent" className="p-6">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-400 to-red-500 flex items-center justify-center text-white">
+                <TrendingDown className="w-5 h-5" />
+              </div>
+              <p className="text-sm text-muted">{t('dashboard.expenses')}</p>
+            </div>
+            <p className="text-2xl font-bold text-foreground">{stats.expenses.toLocaleString()} DZD</p>
+          </GlassPanel>
+          
+          <GlassPanel variant={stats.profit >= 0 ? 'accent' : 'danger'} className="p-6">
+            <div className="flex items-center gap-3 mb-2">
+              <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${stats.profit >= 0 ? 'from-green-400 to-green-500' : 'from-red-400 to-red-500'} flex items-center justify-center text-white`}>
+                {stats.profit >= 0 ? <TrendingUp className="w-5 h-5" /> : <TrendingDown className="w-5 h-5" />}
+              </div>
+              <p className="text-sm text-muted">{t('dashboard.profit')}</p>
+            </div>
+            <p className="text-2xl font-bold text-foreground">{stats.profit.toLocaleString()} DZD</p>
+          </GlassPanel>
         </div>
       )}
 
@@ -50,8 +110,8 @@ export function DashboardPage() {
             .filter((g) => g.schedules?.some((s) => s.dayOfWeek === today))
             .map((group) => (
               <Link key={group.id} to={`/groups/${group.id}/session`}>
-                <Card className="hover:card-shadow-lg transition-shadow">
-                  <CardContent className="py-4 flex items-center justify-between">
+                <GlassPanel className="p-4 hover:scale-[1.02] transition-transform">
+                  <div className="flex items-center justify-between">
                     <div>
                       <p className="font-semibold text-foreground">{group.name}</p>
                       <p className="text-xs text-muted flex items-center gap-1 mt-1">
@@ -63,8 +123,8 @@ export function DashboardPage() {
                       </p>
                     </div>
                     <ChevronRight className="w-5 h-5 text-muted" />
-                  </CardContent>
-                </Card>
+                  </div>
+                </GlassPanel>
               </Link>
             ))}
           {!data?.groups.some((g) => g.schedules?.some((s) => s.dayOfWeek === today)) && (
@@ -74,16 +134,14 @@ export function DashboardPage() {
       </section>
 
       {data?.subscriptions && data.subscriptions.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>{t('groups.needsAttention')}</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
+        <GlassPanel className="p-6">
+          <h3 className="text-lg font-semibold text-foreground mb-4">{t('groups.needsAttention')}</h3>
+          <div className="space-y-2">
             {data.subscriptions.map((sub) => (
               <Link
                 key={sub.id}
                 to={`/groups/${sub.enrollment.class?.id ?? ''}/subscriptions`}
-                className="flex items-center justify-between p-3 rounded-xl bg-surface hover:bg-surface-hover transition-colors"
+                className="flex items-center justify-between p-4 rounded-xl bg-surface hover:bg-surface-hover transition-all hover:scale-[1.01]"
               >
                 <div>
                   <p className="text-sm font-medium text-foreground">
@@ -96,8 +154,8 @@ export function DashboardPage() {
                 <StatusBadge status={sub.status} />
               </Link>
             ))}
-          </CardContent>
-        </Card>
+          </div>
+        </GlassPanel>
       )}
     </div>
   )
