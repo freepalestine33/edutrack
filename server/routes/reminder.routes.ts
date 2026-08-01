@@ -1,12 +1,12 @@
 import { Router } from 'express'
 import { prisma } from '../lib/prisma'
-import { requireAuth } from '../middleware/auth'
+import { requireAuthPremium } from '../middleware/auth'
 import { sendWhatsAppBusinessMessage } from '../services/whatsapp.service'
 import { todayRange } from '../lib/utils'
 
 export const reminderRouter = Router()
 
-reminderRouter.post('/reminders/expiry', requireAuth, async (req, res) => {
+reminderRouter.post('/reminders/expiry', requireAuthPremium, async (req, res) => {
   try {
     const orgId = req.auth!.orgId
     const subs = await prisma.subscription.findMany({
@@ -37,7 +37,7 @@ reminderRouter.post('/reminders/expiry', requireAuth, async (req, res) => {
   }
 })
 
-reminderRouter.post('/reminders/absence', requireAuth, async (req, res) => {
+reminderRouter.post('/reminders/absence', requireAuthPremium, async (req, res) => {
   try {
     const orgId = req.auth!.orgId
     const { start, end } = todayRange()
@@ -69,7 +69,7 @@ reminderRouter.post('/reminders/absence', requireAuth, async (req, res) => {
   }
 })
 
-reminderRouter.post('/reminders/payments', requireAuth, async (req, res) => {
+reminderRouter.post('/reminders/payments', requireAuthPremium, async (req, res) => {
   try {
     const orgId = req.auth!.orgId
     const subs = await prisma.subscription.findMany({

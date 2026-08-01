@@ -26,49 +26,49 @@ import { usePremium } from '@/lib/premium'
 const PLANS = [
   {
     id: 'trial',
-    name: 'Free Trial',
-    description: 'Try all features for free',
+    name: 'تجربة مجانية',
+    description: 'جرّب كل المميزات مجانًا',
     duration: 15,
     durationUnit: 'days',
     price: 0,
     currency: 'DZD',
-    features: ['Full access to all features', '15 days trial period', 'No credit card required', 'Cancel anytime'],
+    features: ['وصول كامل لكل المميزات', 'مدة تجربة 15 يومًا', 'لاتحتاج بطاقة ائتمان', 'إلغاء في أي وقت'],
     icon: Zap,
     color: 'from-blue-500 to-cyan-500'
   },
   {
     id: '100students',
-    name: 'Up to 100 Students',
-    description: 'Perfect for small groups',
+    name: 'حتى 100 طالب',
+    description: 'مثالية للمجموعات الصغيرة',
     duration: 1,
     durationUnit: 'year',
     price: 6500,
     currency: 'DZD',
-    features: ['Full access to all features', '1 year validity', 'Priority support', 'Data backup'],
+    features: ['وصول كامل لكل المميزات', 'صلاحية سنة واحدة', 'دعم ذات أولوية', 'نسخ احتياطي للبيانات'],
     icon: Calendar,
     color: 'from-purple-500 to-pink-500'
   },
   {
     id: '250students',
-    name: 'Up to 250 Students',
-    description: 'Perfect for medium groups',
+    name: 'حتى 250 طالبًا',
+    description: 'مناسبة للمجموعات المتوسطة',
     duration: 1,
     durationUnit: 'year',
     price: 7900,
     currency: 'DZD',
-    features: ['Full access to all features', '1 year validity', 'Priority support', 'Data backup', 'Advanced analytics'],
+    features: ['وصول كامل لكل المميزات', 'صلاحية سنة واحدة', 'دعم ذات أولوية', 'نسخ احتياطي للبيانات', 'تحليلات متقدمة'],
     icon: Crown,
     color: 'from-amber-500 to-orange-500'
   },
   {
     id: '500students',
-    name: 'Up to 500 Students',
-    description: 'Perfect for large groups',
+    name: 'حتى 500 طالب',
+    description: 'مثالية للمجموعات الكبيرة',
     duration: 1,
     durationUnit: 'year',
     price: 9500,
     currency: 'DZD',
-    features: ['Full access to all features', '1 year validity', 'Priority support', 'Data backup', 'Advanced analytics', 'Dedicated manager'],
+    features: ['وصول كامل لكل المميزات', 'صلاحية سنة واحدة', 'دعم ذات أولوية', 'نسخ احتياطي للبيانات', 'تحليلات متقدمة', 'مدير مخصص'],
     icon: Crown,
     color: 'from-emerald-500 to-teal-500'
   }
@@ -100,7 +100,7 @@ export function PlansPage() {
   const reqMutation = useMutation({
     mutationFn: api.createSubscriptionRequest,
     onSuccess: () => {
-      setMessage('Request submitted. It is now visible in Subscription Requests.')
+      setMessage('تم إرسال الطلب. أصبح مرئيًا الآن في طلبات الاشتراك.')
       clearNewUserFlag()
       if (!isNewUser) {
         navigate('/')
@@ -113,7 +113,7 @@ export function PlansPage() {
   const handleSelectPlan = async (planId: string) => {
     const token = session?.token || useAppStore.getState().token
     if (!token) {
-      setError('Please sign in to select a plan')
+      setError('يرجى تسجيل الدخول لاختيار باقة')
       navigate('/onboarding')
       return
     }
@@ -133,7 +133,7 @@ export function PlansPage() {
       }
     } catch (err) {
       console.error('Plan selection error:', err)
-      setError(err instanceof Error ? err.message : 'Failed to select plan')
+      setError(err instanceof Error ? err.message : 'فشل اختيار الباقة')
       setLoading(null)
     }
   }
@@ -151,7 +151,7 @@ export function PlansPage() {
         currency: plan.currency 
       })
     } catch (error) {
-      setError(error instanceof Error ? error.message : 'Unable to submit your request.')
+      setError(error instanceof Error ? error.message : 'تعذر إرسال طلبك.')
     }
   }
 
@@ -183,31 +183,28 @@ export function PlansPage() {
               <div>
                 <div className="flex items-center gap-3 flex-wrap">
                   <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
-                    {t('plans.activeTitle', 'Active Premium Subscription')}
+                    {t('plans.activeTitle')}
                   </h1>
                   <span className="px-3.5 py-1 rounded-full bg-emerald-400/30 backdrop-blur-md border border-emerald-300/40 text-xs font-bold text-emerald-100 flex items-center gap-1.5 shadow-sm">
                     <span className="w-2 h-2 rounded-full bg-emerald-300 animate-ping" />
-                    PRO ACTIVE
+                    {t('plans.proActive')}
                   </span>
                 </div>
                 <p className="mt-1 text-emerald-100/90 text-sm max-w-xl">
-                  {t(
-                    'plans.activeSubtitle',
-                    'Your organization has full unlimited access to all features. All study groups, attendance, and finance features are active.'
-                  )}
+                  {t('plans.activeSubtitle')}
                 </p>
+
+                <a
+                  href={import.meta.env.VITE_TELEGRAM_LINK || 'https://t.me/ysngr33'}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="self-start md:self-auto px-5 py-2.5 rounded-xl bg-white/15 hover:bg-white/25 text-white text-sm font-medium backdrop-blur-md border border-white/20 transition-all flex items-center gap-2 shadow-sm"
+                >
+                  <MessageCircle className="w-4.5 h-4.5 text-cyan-200" />
+                  {t('plans.supportTelegram')}
+                </a>
               </div>
             </div>
-
-            <a
-              href={import.meta.env.VITE_TELEGRAM_LINK || 'https://t.me/ysngr33'}
-              target="_blank"
-              rel="noreferrer"
-              className="self-start md:self-auto px-5 py-2.5 rounded-xl bg-white/15 hover:bg-white/25 text-white text-sm font-medium backdrop-blur-md border border-white/20 transition-all flex items-center gap-2 shadow-sm"
-            >
-              <MessageCircle className="w-4.5 h-4.5 text-cyan-200" />
-              {t('plans.supportTelegram', 'Support Telegram')}
-            </a>
           </div>
         </div>
 
@@ -302,14 +299,12 @@ export function PlansPage() {
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
               {[
-                'Unlimited Students & Study Groups',
-                'Automated Attendance & Session Tracking',
-                'Digital PDF Receipts & Exports',
-                'WhatsApp & Email Receipt Notifications',
-                'Full Financial Revenue & Expense Reports',
-                'Weekly Schedules & Multi-Teacher Support',
-                'Priority Telegram Customer Support',
-                'Cloud Backups & Instant Updates',
+                'طلاب ومجموعات دراسية غير محدودة',
+                'تتبع الحضور والجلسات آليًا',
+                'تقارير الإيرادات والمصروفات المالية الكاملة',
+                'جداول أسبوعية ودعم متعدد المدرسين',
+                'دعم تيليجرام بأولوية',
+                'نسخ احتياطي سحابي وتحديثات فورية',
               ].map((feature, i) => (
                 <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-surface/50 border border-border/40">
                   <div className="w-6 h-6 rounded-full bg-emerald-500/15 flex items-center justify-center text-emerald-500 shrink-0">
@@ -389,7 +384,7 @@ export function PlansPage() {
                     {trialMutation.isPending ? (
                       <>
                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Starting…
+                        {t('plans.starting', 'جاري البدء…')}
                       </>
                     ) : (
                       <>

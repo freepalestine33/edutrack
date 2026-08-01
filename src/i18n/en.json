@@ -122,7 +122,8 @@
     "hoverDotHint": "Hover a dot to see date · Left = most recent",
     "presentCount": "{{count}} present",
     "absentCount": "{{count}} absent",
-    "attendanceRate": "{{rate}}% attendance"
+    "attendanceRate": "{{rate}}% attendance",
+    "deleteSession": "Delete session"
   },
   "students": {
     "title": "Students",
@@ -136,7 +137,9 @@
     "save": "Save",
     "noStudents": "No students yet",
     "noStudentsInGroup": "No students in this group",
-    "ungrouped": "Ungrouped students"
+    "ungrouped": "Ungrouped students",
+    "confirmRemove": "Remove",
+    "removeFromGroup": "Remove from group"
   },
   "attendance": {
     "title": "Attendance",
@@ -171,9 +174,14 @@
     "subtitle": "Define pricing packs for your students (e.g. 8 sessions for 1500 DZD)",
     "create": "Create plan",
     "newPlan": "New subscription plan",
+    "edit": "Edit",
+    "editPlan": "Edit subscription plan",
     "namePlaceholder": "e.g. 8 Sessions Pack",
     "sessionsLabel": "sessions",
     "session": "session",
+    "save": "Save",
+    "delete": "Delete",
+    "deleteConfirm": "Delete {{name}}? This cannot be undone.",
     "empty": "No plans yet. Create your first subscription pack.",
     "emptyAssign": "Create a plan first, then assign it when adding students.",
     "manage": "Manage plans",
@@ -194,7 +202,13 @@
     "allGroups": "All groups",
     "selectGroup": "Select group",
     "selectTeacher": "Select teacher",
-    "noTeacher": "No teacher assigned"
+    "noTeacher": "No teacher assigned",
+    "isPermanent": "Permanent session (repeats weekly)",
+    "permanent": "Permanent",
+    "singleSession": "Single session",
+    "permanentDesc": "Repeats weekly and will not be deleted after finishing",
+    "singleSessionDesc": "Automatically deleted from schedule once finished",
+    "togglePermanent": "Toggle permanent / single"
   },
   "finance": {
     "title": "Finance",
@@ -219,6 +233,8 @@
     "plan": "Plan",
     "viewReceipt": "View receipt",
     "noReceipt": "Receipt unavailable",
+    "noPayments": "No recent payments",
+    "noExpenses": "No expenses recorded",
     "category": "Category",
     "amount": "Amount",
     "description": "Description"

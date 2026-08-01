@@ -1,7 +1,12 @@
 import { Router } from 'express'
 import { prisma } from '../lib/prisma'
-import { requireAuth } from '../middleware/auth'
+import { requireAuthPremium, publicUserSelect } from '../middleware/auth'
 import { todayRange } from '../lib/utils'
+import {
+  findTodaySession,
+  resolveSessionSchedule,
+  scheduledAtFromSchedule,
+} from '../lib/session.utils'
 import {
   classInclude,
   sessionWithClassInclude,
@@ -17,7 +22,7 @@ export const classRouter = Router()
 
 // ─── GET /classes ───────────────────────────────────────────────────────────
 
-classRouter.get('/classes', requireAuth, async (req, res) => {
+classRouter.get('/classes', requireAuthPremium, async (req, res) => {
   try {
     const orgId = req.auth!.orgId
     const { start, end } = todayRange()
@@ -29,7 +34,7 @@ classRouter.get('/classes', requireAuth, async (req, res) => {
         teacher: true,
         schedules: { orderBy: { dayOfWeek: 'asc' } },
         _count: { select: { enrollments: true } },
-        sessions: { where: { scheduledAt: { gte: start, lte: end } }, take: 1 },
+        sessions: { where: { scheduledAt: { gte: start, lte: end }, status: { in: ['in_progress', 'finished'] } }, take: 1 },
       },
       orderBy: { name: 'asc' },
     })
@@ -42,7 +47,7 @@ classRouter.get('/classes', requireAuth, async (req, res) => {
 
 // ─── POST /classes ──────────────────────────────────────────────────────────
 
-classRouter.post('/classes', requireAuth, async (req, res) => {
+classRouter.post('/classes', requireAuthPremium, async (req, res) => {
   try {
     const orgId = req.auth!.orgId
     const { name, subjectId, maxCapacity, level, year, section } = req.body
@@ -80,7 +85,7 @@ classRouter.post('/classes', requireAuth, async (req, res) => {
 
 // ─── GET /classes/:id ───────────────────────────────────────────────────────
 
-classRouter.get('/classes/:id', requireAuth, async (req, res) => {
+classRouter.get('/classes/:id', requireAuthPremium, async (req, res) => {
   try {
     const orgId = req.auth!.orgId
     const cls = await prisma.class.findFirst({
@@ -104,14 +109,14 @@ classRouter.get('/classes/:id', requireAuth, async (req, res) => {
 
 // ─── POST /classes/:id/schedules (with orgId check) ─────────────────────────
 
-classRouter.post('/classes/:id/schedules', requireAuth, async (req, res) => {
+classRouter.post('/classes/:id/schedules', requireAuthPremium, async (req, res) => {
   try {
     const orgId = req.auth!.orgId
     // Security: verify the class belongs to the user's organization
     const cls = await prisma.class.findFirst({ where: { id: String(req.params.id), orgId } })
     if (!cls) return res.status(404).json({ error: 'Group not found in your organization' })
 
-    const { dayOfWeek, startTime, endTime, notes, teacherId } = req.body
+    const { dayOfWeek, startTime, endTime, notes, teacherId, isPermanent } = req.body
     const schedule = await prisma.schedule.create({
       data: {
         classId: cls.id,
@@ -120,6 +125,7 @@ classRouter.post('/classes/:id/schedules', requireAuth, async (req, res) => {
         endTime,
         notes: notes || null,
         teacherId: teacherId || null,
+        isPermanent: isPermanent !== undefined ? Boolean(isPermanent) : true,
       },
     })
     res.status(201).json(schedule)
@@ -129,9 +135,38 @@ classRouter.post('/classes/:id/schedules', requireAuth, async (req, res) => {
   }
 })
 
+// ─── PATCH /schedules/:id (toggle isPermanent or update schedule) ─────────────
+
+classRouter.patch('/schedules/:id', requireAuthPremium, async (req, res) => {
+  try {
+    const orgId = req.auth!.orgId
+    const schedule = await prisma.schedule.findFirst({
+      where: { id: String(req.params.id), class: { orgId } },
+    })
+    if (!schedule) return res.status(404).json({ error: 'Schedule not found in your organization' })
+
+    const { isPermanent, startTime, endTime, notes, dayOfWeek, teacherId } = req.body
+    const updated = await prisma.schedule.update({
+      where: { id: schedule.id },
+      data: {
+        ...(isPermanent !== undefined && { isPermanent: Boolean(isPermanent) }),
+        ...(startTime && { startTime }),
+        ...(endTime && { endTime }),
+        ...(notes !== undefined && { notes: notes || null }),
+        ...(dayOfWeek !== undefined && { dayOfWeek: Number(dayOfWeek) }),
+        ...(teacherId !== undefined && { teacherId: teacherId || null }),
+      },
+    })
+    res.json(updated)
+  } catch (err) {
+    console.error('Error updating schedule:', err)
+    res.status(500).json({ error: 'Failed to update schedule' })
+  }
+})
+
 // ─── DELETE /schedules/:id (with orgId check) ───────────────────────────────
 
-classRouter.delete('/schedules/:id', requireAuth, async (req, res) => {
+classRouter.delete('/schedules/:id', requireAuthPremium, async (req, res) => {
   try {
     const orgId = req.auth!.orgId
     // Security: verify the schedule belongs to the user's organization
@@ -150,7 +185,7 @@ classRouter.delete('/schedules/:id', requireAuth, async (req, res) => {
 
 // ─── POST /classes/:id/students ─────────────────────────────────────────────
 
-classRouter.post('/classes/:id/students', requireAuth, async (req, res) => {
+classRouter.post('/classes/:id/students', requireAuthPremium, async (req, res) => {
   try {
     const orgId = req.auth!.orgId
     const classId = String(req.params.id)
@@ -163,10 +198,35 @@ classRouter.post('/classes/:id/students', requireAuth, async (req, res) => {
     const cls = await prisma.class.findFirst({ where: { id: classId, orgId } })
     if (!cls) return res.status(404).json({ error: 'Group not found in your organization' })
 
+    const normalizedEmail = email ? String(email).trim().toLowerCase() : null
+    const normalizedPhone = phone ? String(phone).trim() : null
+
     const result = await prisma.$transaction(async (tx) => {
-      const student = await tx.student.create({
-        data: { orgId, firstName, lastName, phone: phone || null, email: email || null },
+      let student = normalizedEmail
+        ? await tx.student.findFirst({ where: { orgId, email: normalizedEmail } })
+        : null
+      if (!student && normalizedPhone) {
+        student = await tx.student.findFirst({ where: { orgId, phone: normalizedPhone } })
+      }
+
+      if (!student) {
+        student = await tx.student.create({
+          data: {
+            orgId,
+            firstName,
+            lastName,
+            phone: normalizedPhone,
+            email: normalizedEmail,
+          },
+        })
+      }
+
+      const existingEnrollment = await tx.enrollment.findUnique({
+        where: { studentId_classId: { studentId: student.id, classId } },
       })
+      if (existingEnrollment) {
+        throw new Error('ENROLLMENT_EXISTS')
+      }
 
       const enrollment = await tx.enrollment.create({
         data: { studentId: student.id, classId },
@@ -195,14 +255,37 @@ classRouter.post('/classes/:id/students', requireAuth, async (req, res) => {
 
     res.status(201).json(result)
   } catch (err) {
+    if (err instanceof Error && err.message === 'ENROLLMENT_EXISTS') {
+      return res.status(409).json({ error: 'Student is already enrolled in this group' })
+    }
     console.error('Error adding student to class:', err)
     res.status(500).json({ error: 'Failed to add student to class' })
   }
 })
 
+// ─── DELETE /enrollments/:id — remove student from group ───────────────────
+
+classRouter.delete('/enrollments/:id', requireAuthPremium, async (req, res) => {
+  try {
+    const orgId = req.auth!.orgId
+    const enrollment = await prisma.enrollment.findFirst({
+      where: { id: String(req.params.id), class: { orgId } },
+    })
+    if (!enrollment) {
+      return res.status(404).json({ error: 'Enrollment not found in your organization' })
+    }
+
+    await prisma.enrollment.delete({ where: { id: enrollment.id } })
+    res.json({ ok: true, deletedId: enrollment.id })
+  } catch (err) {
+    console.error('Error removing enrollment:', err)
+    res.status(500).json({ error: 'Failed to remove student from group' })
+  }
+})
+
 // ─── GET /classes/:id/subscriptions ─────────────────────────────────────────
 
-classRouter.get('/classes/:id/subscriptions', requireAuth, async (req, res) => {
+classRouter.get('/classes/:id/subscriptions', requireAuthPremium, async (req, res) => {
   try {
     const orgId = req.auth!.orgId
     const enrollments = await prisma.enrollment.findMany({
@@ -244,15 +327,19 @@ classRouter.get('/classes/:id/subscriptions', requireAuth, async (req, res) => {
 
 // ─── GET /classes/:id/session ───────────────────────────────────────────────
 
-classRouter.get('/classes/:id/session', requireAuth, async (req, res) => {
+classRouter.get('/classes/:id/session', requireAuthPremium, async (req, res) => {
   try {
     const orgId = req.auth!.orgId
+    const classId = String(req.params.id)
     const { start, end } = todayRange()
-    const session = await prisma.session.findFirst({
-      where: { classId: String(req.params.id), scheduledAt: { gte: start, lte: end }, class: { orgId } },
-      include: sessionWithClassInclude,
+
+    // Only return active (in_progress) sessions — finished sessions return null
+    // so the UI can offer to start a new session slot.
+    const active = await prisma.session.findFirst({
+      where: { classId, scheduledAt: { gte: start, lte: end }, class: { orgId }, status: 'in_progress' },
+      include: { ...sessionWithClassInclude, schedule: true },
     })
-    res.json(session)
+    res.json(active ?? null)
   } catch (err) {
     console.error('Error fetching class session:', err)
     res.status(500).json({ error: 'Failed to fetch session' })
@@ -261,35 +348,46 @@ classRouter.get('/classes/:id/session', requireAuth, async (req, res) => {
 
 // ─── POST /classes/:id/session/start ────────────────────────────────────────
 
-classRouter.post('/classes/:id/session/start', requireAuth, async (req, res) => {
+classRouter.post('/classes/:id/session/start', requireAuthPremium, async (req, res) => {
   try {
     const orgId = req.auth!.orgId
     const classId = String(req.params.id)
+    const { scheduleId } = req.body ?? {}
     const cls = await prisma.class.findFirst({ where: { id: classId, orgId } })
     if (!cls) return res.status(404).json({ error: 'Group not found in your organization' })
 
-    const { start, end } = todayRange()
+    const schedule = await resolveSessionSchedule(classId, scheduleId)
+    const scheduledAt = schedule ? scheduledAtFromSchedule(schedule) : new Date()
 
-    let session = await prisma.session.findFirst({
-      where: { classId, scheduledAt: { gte: start, lte: end } },
+    const { start, end } = todayRange()
+    const activeSession = await prisma.session.findFirst({
+      where: {
+        classId,
+        scheduledAt: { gte: start, lte: end },
+        class: { orgId },
+        status: 'in_progress',
+        ...(schedule ? { scheduleId: schedule.id } : {}),
+      },
+      include: { ...sessionWithClassInclude, schedule: true },
     })
 
+    const now = new Date()
+    let session = activeSession
     if (!session) {
-      const now = new Date()
-      now.setMinutes(0, 0, 0)
       session = await prisma.session.create({
-        data: { classId, scheduledAt: now, status: 'in_progress' },
-      })
-    } else {
-      session = await prisma.session.update({
-        where: { id: session.id },
-        data: { status: 'in_progress' },
+        data: {
+          classId,
+          scheduleId: schedule?.id ?? null,
+          scheduledAt,
+          startedAt: now,
+          status: 'in_progress',
+        },
       })
     }
 
     const full = await prisma.session.findUnique({
       where: { id: session.id },
-      include: sessionWithClassInclude,
+      include: { ...sessionWithClassInclude, schedule: true },
     })
     res.json(full)
   } catch (err) {
@@ -300,19 +398,33 @@ classRouter.post('/classes/:id/session/start', requireAuth, async (req, res) => 
 
 // ─── POST /classes/:id/session/end ──────────────────────────────────────────
 
-classRouter.post('/classes/:id/session/end', requireAuth, async (req, res) => {
+classRouter.post('/classes/:id/session/end', requireAuthPremium, async (req, res) => {
   try {
     const orgId = req.auth!.orgId
+    const classId = String(req.params.id)
     const { start, end } = todayRange()
 
-    const session = await prisma.session.findFirst({ where: { classId: String(req.params.id), scheduledAt: { gte: start, lte: end }, class: { orgId } } })
-    if (!session) return res.status(404).json({ error: 'No active session' })
+    const session = await prisma.session.findFirst({
+      where: { classId, scheduledAt: { gte: start, lte: end }, class: { orgId }, status: 'in_progress' },
+      include: { schedule: true },
+    })
+    if (!session) return res.status(404).json({ error: 'No active session to end' })
 
-    const updated = await prisma.session.update({ where: { id: session.id }, data: { status: 'finished' } })
+    const updated = await prisma.session.update({
+      where: { id: session.id },
+      data: { status: 'finished', endedAt: new Date() },
+    })
+
+    // If the session was linked to a schedule and the schedule is NOT permanent, delete it from the schedule table
+    if (session.scheduleId && session.schedule && !session.schedule.isPermanent) {
+      await prisma.schedule.delete({ where: { id: session.scheduleId } }).catch((err) => {
+        console.error('Failed to auto-delete non-permanent schedule:', err)
+      })
+    }
 
     const full = await prisma.session.findUnique({
       where: { id: updated.id },
-      include: sessionWithClassInclude,
+      include: { ...sessionWithClassInclude, schedule: true },
     })
     res.json(full)
   } catch (err) {
@@ -323,7 +435,7 @@ classRouter.post('/classes/:id/session/end', requireAuth, async (req, res) => {
 
 // ─── GET /classes/:id/history ───────────────────────────────────────────────
 
-classRouter.get('/classes/:id/history', requireAuth, async (req, res) => {
+classRouter.get('/classes/:id/history', requireAuthPremium, async (req, res) => {
   try {
     const orgId = req.auth!.orgId
     const sessions = await prisma.session.findMany({
@@ -348,13 +460,36 @@ classRouter.get('/classes/:id/history', requireAuth, async (req, res) => {
   }
 })
 
+// ─── DELETE /classes/:classId/history/:sessionId ───────────────────────────
+
+classRouter.delete('/classes/:classId/history/:sessionId', requireAuthPremium, async (req, res) => {
+  try {
+    const orgId = req.auth!.orgId
+    const { classId, sessionId } = req.params
+
+    const session = await prisma.session.findFirst({
+      where: { id: sessionId, classId, class: { orgId } },
+    })
+    if (!session) {
+      return res.status(404).json({ error: 'Session not found' })
+    }
+
+    await prisma.session.delete({ where: { id: session.id } })
+    res.json({ ok: true, deletedId: session.id })
+  } catch (err) {
+    console.error('Error deleting class session history:', err)
+    res.status(500).json({ error: 'Failed to delete session history' })
+  }
+})
+
 // ─── GET /teachers ──────────────────────────────────────────────────────────
 
-classRouter.get('/teachers', requireAuth, async (req, res) => {
+classRouter.get('/teachers', requireAuthPremium, async (req, res) => {
   try {
     const orgId = req.auth!.orgId
     const teachers = await prisma.user.findMany({
       where: { orgId, role: { in: ['TEACHER', 'ADMIN', 'TUTOR'] } },
+      select: publicUserSelect,
       orderBy: { name: 'asc' },
     })
     res.json(teachers)
@@ -366,7 +501,7 @@ classRouter.get('/teachers', requireAuth, async (req, res) => {
 
 // ─── GET /schedules ─────────────────────────────────────────────────────────
 
-classRouter.get('/schedules', requireAuth, async (req, res) => {
+classRouter.get('/schedules', requireAuthPremium, async (req, res) => {
   try {
     const orgId = req.auth!.orgId
     const schedules = await prisma.schedule.findMany({
@@ -386,7 +521,7 @@ classRouter.get('/schedules', requireAuth, async (req, res) => {
 
 // ─── DELETE /classes/:id ───────────────────────────────────────────────────
 
-classRouter.delete('/classes/:id', requireAuth, async (req, res) => {
+classRouter.delete('/classes/:id', requireAuthPremium, async (req, res) => {
   try {
     const orgId = req.auth!.orgId
     const classId = String(req.params.id)

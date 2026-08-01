@@ -1,12 +1,12 @@
 import { Router } from 'express'
 import { prisma } from '../lib/prisma'
-import { requireAuth } from '../middleware/auth'
+import { requireAuthPremium } from '../middleware/auth'
 import { computeSubscriptionStatus } from '../lib/subscription.utils'
 import { todayRange } from '../lib/utils'
 
 export const attendanceRouter = Router()
 
-attendanceRouter.get('/today-sessions', requireAuth, async (req, res) => {
+attendanceRouter.get('/today-sessions', requireAuthPremium, async (req, res) => {
   try {
     const orgId = req.auth!.orgId
     const { start, end } = todayRange()
@@ -14,11 +14,14 @@ attendanceRouter.get('/today-sessions', requireAuth, async (req, res) => {
       where: {
         scheduledAt: { gte: start, lte: end },
         class: { orgId },
+        status: 'in_progress',
       },
       include: {
+        schedule: true,
         class: {
           include: {
             enrollments: {
+              where: { status: 'ACTIVE' },
               include: {
                 student: true,
                 subscriptions: { include: { plan: true }, orderBy: { createdAt: 'desc' }, take: 1 },
@@ -28,7 +31,7 @@ attendanceRouter.get('/today-sessions', requireAuth, async (req, res) => {
         },
         attendances: true,
       },
-      orderBy: { scheduledAt: 'asc' },
+      orderBy: [{ scheduledAt: 'asc' }],
     })
     res.json(sessions)
   } catch (err) {
@@ -37,28 +40,69 @@ attendanceRouter.get('/today-sessions', requireAuth, async (req, res) => {
   }
 })
 
-attendanceRouter.post('/attendance', requireAuth, async (req, res) => {
+attendanceRouter.post('/attendance', requireAuthPremium, async (req, res) => {
   try {
+    const orgId = req.auth!.orgId
     const { sessionId, studentId, status, subscriptionId, isDropIn } = req.body
 
     if (!sessionId || !studentId || !status) {
       return res.status(400).json({ error: 'Session ID, Student ID, and Status are required' })
     }
 
-    // Security: verify the session belongs to the user's organization
     const session = await prisma.session.findFirst({
-      where: { id: sessionId, class: { orgId: req.auth!.orgId } },
+      where: { id: sessionId, class: { orgId } },
+      select: { id: true, classId: true },
     })
     if (!session) {
       return res.status(404).json({ error: 'Session not found in your organization' })
     }
 
+    const student = await prisma.student.findFirst({
+      where: { id: studentId, orgId },
+    })
+    if (!student) {
+      return res.status(404).json({ error: 'Student not found in your organization' })
+    }
+
+    const isEnrolled = await prisma.enrollment.findFirst({
+      where: { studentId, classId: session.classId, status: 'ACTIVE' },
+    })
+    if (!isEnrolled && !isDropIn) {
+      return res.status(400).json({ error: 'Student is not enrolled in this group' })
+    }
+
     let subscription = subscriptionId
-      ? await prisma.subscription.findUnique({ where: { id: subscriptionId }, include: { plan: true } })
+      ? await prisma.subscription.findFirst({
+          where: {
+            id: subscriptionId,
+            enrollment: { studentId, class: { orgId } },
+          },
+          include: { plan: true },
+        })
       : null
+
+    if (subscriptionId && !subscription) {
+      return res.status(404).json({ error: 'Subscription not found in your organization' })
+    }
 
     const policy = subscription?.plan.attendancePolicy ?? 'PAID_ABSENCE'
     const counted = status === 'PRESENT' || (status === 'ABSENT' && policy === 'PAID_ABSENCE')
+
+    let isUnpaid = false
+    if (subscription && status === 'PRESENT' && !isDropIn) {
+      // Exclude current sessionId from count when checking remaining capacity
+      const usedOther = await prisma.attendance.count({
+        where: {
+          subscriptionId: subscription.id,
+          countedTowardSubscription: true,
+          NOT: { sessionId },
+        },
+      })
+      const remainingBeforeThisSession = subscription.sessionsTotal - usedOther
+      isUnpaid = remainingBeforeThisSession <= 0
+    } else if (!subscription && status === 'PRESENT' && !isDropIn) {
+      isUnpaid = true
+    }
 
     const attendance = await prisma.attendance.upsert({
       where: { sessionId_studentId: { sessionId, studentId } },
@@ -67,13 +111,15 @@ attendanceRouter.post('/attendance', requireAuth, async (req, res) => {
         studentId,
         subscriptionId: subscription?.id,
         status,
-        countedTowardSubscription: counted && !isDropIn,
+        countedTowardSubscription: counted && !isDropIn && !isUnpaid,
         isDropIn: !!isDropIn,
+        isUnpaid,
         markedById: req.auth!.id,
       },
       update: {
         status,
-        countedTowardSubscription: counted && !isDropIn,
+        countedTowardSubscription: counted && !isDropIn && !isUnpaid,
+        isUnpaid,
         markedById: req.auth!.id,
       },
     })

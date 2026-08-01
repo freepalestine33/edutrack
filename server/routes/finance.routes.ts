@@ -2,17 +2,17 @@ import { Router } from 'express'
 import fs from 'fs'
 import path from 'path'
 import { prisma } from '../lib/prisma'
-import { requireAuth } from '../middleware/auth'
+import { requireAuthPremium } from '../middleware/auth'
 import { sendReceiptEmail } from '../services/email.service'
 import { ensureReceiptDir, generateReceiptPdf, RECEIPT_DIR } from '../services/pdf.service'
 import { sendWhatsAppReceipt } from '../services/whatsapp.service'
 
 export const financeRouter = Router()
 
-financeRouter.get('/finance', requireAuth, async (req, res) => {
+financeRouter.get('/finance', requireAuthPremium, async (req, res) => {
   try {
     const orgId = req.auth!.orgId
-    const [payments, expenses] = await Promise.all([
+    const [payments, expenses, revenueAgg, expenseAgg] = await Promise.all([
       prisma.payment.findMany({
         where: { orgId },
         include: { student: true },
@@ -23,10 +23,12 @@ financeRouter.get('/finance', requireAuth, async (req, res) => {
         where: { orgId },
         orderBy: { expenseDate: 'desc' },
       }),
+      prisma.payment.aggregate({ where: { orgId }, _sum: { amount: true } }),
+      prisma.expense.aggregate({ where: { orgId }, _sum: { amount: true } }),
     ])
 
-    const totalRevenue = payments.reduce((s, p) => s + p.amount, 0)
-    const totalExpenses = expenses.reduce((s, e) => s + e.amount, 0)
+    const totalRevenue = revenueAgg._sum.amount ?? 0
+    const totalExpenses = expenseAgg._sum.amount ?? 0
 
     res.json({ payments, expenses, totalRevenue, totalExpenses, profit: totalRevenue - totalExpenses })
   } catch (err) {
@@ -35,7 +37,7 @@ financeRouter.get('/finance', requireAuth, async (req, res) => {
   }
 })
 
-financeRouter.post('/payments', requireAuth, async (req, res) => {
+financeRouter.post('/payments', requireAuthPremium, async (req, res) => {
   try {
     const orgId = req.auth!.orgId
     const { studentId, subscriptionId, amount, currency, method, type } = req.body
@@ -90,7 +92,7 @@ financeRouter.post('/payments', requireAuth, async (req, res) => {
   }
 })
 
-financeRouter.post('/expenses', requireAuth, async (req, res) => {
+financeRouter.post('/expenses', requireAuthPremium, async (req, res) => {
   try {
     const orgId = req.auth!.orgId
     const { category, amount, description, recurring } = req.body
@@ -109,7 +111,7 @@ financeRouter.post('/expenses', requireAuth, async (req, res) => {
   }
 })
 
-financeRouter.post('/test-send-receipt', requireAuth, async (req, res) => {
+financeRouter.post('/test-send-receipt', requireAuthPremium, async (req, res) => {
   const { studentId } = req.body
   if (!studentId) return res.status(400).json({ error: 'Missing studentId' })
 

@@ -122,7 +122,8 @@
     "hoverDotHint": "Survolez un point pour voir la date · Gauche = plus récent",
     "presentCount": "{{count}} présent(s)",
     "absentCount": "{{count}} absent(s)",
-    "attendanceRate": "{{rate}}% de présence"
+    "attendanceRate": "{{rate}}% de présence",
+    "deleteSession": "Supprimer la séance"
   },
   "students": {
     "title": "Élèves",
@@ -136,7 +137,9 @@
     "save": "Enregistrer",
     "noStudents": "Aucun élève pour le moment",
     "noStudentsInGroup": "Aucun élève dans ce groupe",
-    "ungrouped": "Élèves sans groupe"
+    "ungrouped": "Élèves sans groupe",
+    "confirmRemove": "Supprimer",
+    "removeFromGroup": "Supprimer du groupe"
   },
   "attendance": {
     "title": "Présences",
@@ -171,9 +174,14 @@
     "subtitle": "Définissez vos packs tarifaires (ex. 8 séances pour 1500 DZD)",
     "create": "Créer une formule",
     "newPlan": "Nouvelle formule",
+    "edit": "Modifier",
+    "editPlan": "Modifier la formule",
     "namePlaceholder": "ex. Pack 8 séances",
     "sessionsLabel": "séances",
     "session": "séance",
+    "save": "Enregistrer",
+    "delete": "Supprimer",
+    "deleteConfirm": "Supprimer {{name}} ? Cette action est irréversible.",
     "empty": "Aucune formule. Créez votre premier pack.",
     "emptyAssign": "Créez d'abord une formule, puis assignez-la aux élèves.",
     "manage": "Gérer les formules",
@@ -194,7 +202,13 @@
     "allGroups": "Tous les groupes",
     "selectGroup": "Choisir un groupe",
     "selectTeacher": "Choisir un professeur",
-    "noTeacher": "Aucun professeur"
+    "noTeacher": "Aucun professeur",
+    "isPermanent": "Séance permanente (récurrente)",
+    "permanent": "Permanente",
+    "singleSession": "Séance unique",
+    "permanentDesc": "Se répète chaque semaine et ne sera pas supprimée après la séance",
+    "singleSessionDesc": "Sera supprimée de l'emploi du temps une fois terminée",
+    "togglePermanent": "Basculer récurrente / unique"
   },
   "finance": {
     "title": "Finances",
@@ -218,8 +232,8 @@
     "typeRefund": "Remboursement",
     "plan": "Forfait",
     "viewReceipt": "Voir le reçu",
-    "noReceipt": "Reçu indisponible",
-    "category": "Catégorie",
+    "noReceipt": "Reçu indisponible",    "noPayments": "Aucun paiement récent",
+    "noExpenses": "Aucune dépense enregistrée",    "category": "Catégorie",
     "amount": "Montant",
     "description": "Description"
   },

@@ -1,12 +1,12 @@
 import { Router } from 'express'
 import { AttendancePolicy } from '@prisma/client'
 import { prisma } from '../lib/prisma'
-import { requireAdmin, requireAuth } from '../middleware/auth'
+import { requireAdmin, requireAuth, requireAuthPremium } from '../middleware/auth'
 import { buildNewSubscriptionData, buildRenewalData, withPremium } from '../lib/subscription.utils'
 
 export const subscriptionRouter = Router()
 
-subscriptionRouter.get('/subscription-plans', requireAuth, async (req, res) => {
+subscriptionRouter.get('/subscription-plans', requireAuthPremium, async (req, res) => {
   try {
     const orgId = req.auth!.orgId
     const plans = await prisma.subscriptionPlan.findMany({ where: { orgId } })
@@ -17,7 +17,7 @@ subscriptionRouter.get('/subscription-plans', requireAuth, async (req, res) => {
   }
 })
 
-subscriptionRouter.post('/subscription-plans', requireAuth, async (req, res) => {
+subscriptionRouter.post('/subscription-plans', requireAuthPremium, async (req, res) => {
   try {
     const orgId = req.auth!.orgId
     const { name, sessionsCount, price, attendancePolicy } = req.body
@@ -42,7 +42,7 @@ subscriptionRouter.post('/subscription-plans', requireAuth, async (req, res) => 
   }
 })
 
-subscriptionRouter.get('/subscriptions', requireAuth, async (req, res) => {
+subscriptionRouter.get('/subscriptions', requireAuthPremium, async (req, res) => {
   try {
     const orgId = req.auth!.orgId
     const subs = await prisma.subscription.findMany({
@@ -57,23 +57,39 @@ subscriptionRouter.get('/subscriptions', requireAuth, async (req, res) => {
   }
 })
 
-subscriptionRouter.post('/classes/:id/subscriptions', requireAuth, async (req, res) => {
+subscriptionRouter.post('/classes/:id/subscriptions', requireAuthPremium, async (req, res) => {
   try {
     const orgId = req.auth!.orgId
-    const { enrollmentId, subscriptionId, planId } = req.body
-
-    const plan = await prisma.subscriptionPlan.findFirst({ where: { id: planId, orgId } })
-    if (!plan) return res.status(400).json({ error: 'Plan not found' })
+    const { enrollmentId, subscriptionId, planId, extraSessions } = req.body
 
     const enrollment = await prisma.enrollment.findFirst({
       where: { id: enrollmentId, class: { orgId } },
-      select: { studentId: true },
+      select: { studentId: true, classId: true },
     })
     if (!enrollment) return res.status(404).json({ error: 'Enrollment not found' })
 
     const isVirtualId = typeof subscriptionId === 'string' && subscriptionId.startsWith('virtual-')
 
     const subscription = await prisma.$transaction(async (tx) => {
+      let plan = null
+
+      if (extraSessions && Number(extraSessions) > 0) {
+        plan = await tx.subscriptionPlan.create({
+          data: {
+            orgId,
+            name: `Custom ${Number(extraSessions)} sessions`,
+            sessionsCount: Number(extraSessions),
+            price: 0,
+            currency: 'DZD',
+          },
+        })
+      } else if (planId) {
+        plan = await tx.subscriptionPlan.findFirst({ where: { id: String(planId), orgId } })
+        if (!plan) throw new Error('Plan not found')
+      } else {
+        throw new Error('Missing planId or extraSessions')
+      }
+
       const existingSubscription = !isVirtualId && subscriptionId
         ? await tx.subscription.findFirst({ where: { id: subscriptionId, enrollmentId } })
         : await tx.subscription.findFirst({ where: { enrollmentId }, orderBy: { createdAt: 'desc' } })
@@ -81,8 +97,10 @@ subscriptionRouter.post('/classes/:id/subscriptions', requireAuth, async (req, r
       if (existingSubscription) {
         const renewalData = await buildRenewalData(
           { ...existingSubscription, enrollmentId },
-          plan,
+          { id: plan.id, sessionsCount: plan.sessionsCount },
+          enrollment.studentId,
           tx,
+          enrollment.classId,
         )
         return tx.subscription.update({
           where: { id: existingSubscription.id },
@@ -91,7 +109,7 @@ subscriptionRouter.post('/classes/:id/subscriptions', requireAuth, async (req, r
         })
       } else {
         return tx.subscription.create({
-          data: { enrollmentId, ...buildNewSubscriptionData(plan) },
+          data: { enrollmentId, ...buildNewSubscriptionData({ id: plan.id, sessionsCount: plan.sessionsCount }) },
           include: { plan: true, enrollment: { include: { student: true } } },
         })
       }
@@ -100,7 +118,49 @@ subscriptionRouter.post('/classes/:id/subscriptions', requireAuth, async (req, r
     res.json(subscription)
   } catch (err) {
     console.error('Error renewing/creating subscription:', err)
-    res.status(500).json({ error: 'Failed to update subscription' })
+    res.status(500).json({ error: err instanceof Error ? err.message : 'Failed to update subscription' })
+  }
+})
+
+subscriptionRouter.patch('/subscription-plans/:id', requireAuthPremium, async (req, res) => {
+  try {
+    const orgId = req.auth!.orgId
+    const planId = String(req.params.id)
+    const { name, sessionsCount, price, attendancePolicy } = req.body
+
+    const plan = await prisma.subscriptionPlan.findFirst({ where: { id: planId, orgId } })
+    if (!plan) return res.status(404).json({ error: 'Plan not found' })
+
+    const updatedPlan = await prisma.subscriptionPlan.update({
+      where: { id: planId },
+      data: {
+        name: typeof name === 'string' ? name : plan.name,
+        sessionsCount: sessionsCount !== undefined ? Number(sessionsCount) : plan.sessionsCount,
+        price: price !== undefined ? Number(price) : plan.price,
+        attendancePolicy: attendancePolicy as AttendancePolicy || plan.attendancePolicy,
+      },
+    })
+
+    res.json(updatedPlan)
+  } catch (err) {
+    console.error('Error updating plan:', err)
+    res.status(500).json({ error: 'Failed to update subscription plan' })
+  }
+})
+
+subscriptionRouter.delete('/subscription-plans/:id', requireAuthPremium, async (req, res) => {
+  try {
+    const orgId = req.auth!.orgId
+    const planId = String(req.params.id)
+
+    const plan = await prisma.subscriptionPlan.findFirst({ where: { id: planId, orgId } })
+    if (!plan) return res.status(404).json({ error: 'Plan not found' })
+
+    await prisma.subscriptionPlan.delete({ where: { id: planId } })
+    res.json({ ok: true, deletedId: planId })
+  } catch (err) {
+    console.error('Error deleting plan:', err)
+    res.status(500).json({ error: 'Failed to delete subscription plan' })
   }
 })
 
@@ -110,13 +170,6 @@ subscriptionRouter.post('/subscription-requests', requireAuth, async (req, res) 
   if (!amount) return res.status(400).json({ error: 'Missing amount' })
 
   try {
-    // Verify the org and user from the token still exist (guards against stale JWTs)
-    const orgExists = await prisma.organization.findUnique({ where: { id: req.auth!.orgId }, select: { id: true } })
-    if (!orgExists) return res.status(401).json({ error: 'Organization not found — please sign in again' })
-
-    const userExists = await prisma.user.findUnique({ where: { id: req.auth!.id }, select: { id: true } })
-    if (!userExists) return res.status(401).json({ error: 'User not found — please sign in again' })
-
     const reqRec = await prisma.subscriptionRequest.create({
       data: {
         orgId: req.auth!.orgId,

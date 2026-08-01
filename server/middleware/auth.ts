@@ -1,5 +1,6 @@
 import express from 'express'
 import crypto from 'crypto'
+import { prisma } from '../lib/prisma'
 
 export const AUTH_SECRET = process.env.AUTH_SECRET || 'development-only-change-me'
 
@@ -24,7 +25,25 @@ declare global {
   }
 }
 
-export function publicUser(user: any): AuthUser {
+/** Prisma select shape — never expose passwordHash or premiumKey. */
+export const publicUserSelect = {
+  id: true,
+  orgId: true,
+  email: true,
+  name: true,
+  phone: true,
+  role: true,
+  createdAt: true,
+  updatedAt: true,
+} as const
+
+export function publicUser(user: {
+  id: string
+  orgId: string
+  role: AuthUser['role']
+  email: string
+  name: string
+}): AuthUser {
   return {
     id: user.id,
     orgId: user.orgId,
@@ -117,5 +136,40 @@ export function requireAdmin(
     if (req.auth?.role !== 'ADMIN')
       return res.status(403).json({ error: 'Administrator access required' })
     next()
+  })
+}
+
+/** Reject requests when the organization's platform premium has expired. */
+export async function requirePremium(
+  req: express.Request,
+  res: express.Response,
+  next: express.NextFunction,
+) {
+  if (!req.auth) {
+    return res.status(401).json({ error: 'Sign in required' })
+  }
+  try {
+    const org = await prisma.organization.findUnique({
+      where: { id: req.auth.orgId },
+      select: { premiumExpiresAt: true },
+    })
+    if (!org) return res.status(404).json({ error: 'Organization not found' })
+    const expires = org.premiumExpiresAt ? new Date(org.premiumExpiresAt).getTime() : 0
+    if (expires <= Date.now()) {
+      return res.status(403).json({ error: 'Premium subscription required' })
+    }
+    next()
+  } catch (err) {
+    next(err)
+  }
+}
+
+export function requireAuthPremium(
+  req: express.Request,
+  res: express.Response,
+  next: express.NextFunction,
+) {
+  requireAuth(req, res, () => {
+    requirePremium(req, res, next)
   })
 }

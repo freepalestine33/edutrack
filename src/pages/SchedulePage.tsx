@@ -8,7 +8,7 @@ import { Input, Label, Select } from '@/components/ui/Input'
 import { Card, CardContent } from '@/components/ui/Card'
 import { PageHeader, LoadingState } from '@/components/PageHeader'
 import { WeekScheduleGrid } from '@/components/WeekScheduleGrid'
-import { DAY_NAMES } from '@/lib/utils'
+import { getDayNames } from '@/lib/utils'
 
 export function SchedulePage() {
   const { t } = useTranslation()
@@ -22,6 +22,7 @@ export function SchedulePage() {
     startTime: '14:00',
     endTime: '16:00',
     notes: '',
+    isPermanent: true,
   })
 
   const { data: schedules = [], isLoading } = useQuery({
@@ -47,12 +48,23 @@ export function SchedulePage() {
         endTime: form.endTime,
         notes: form.notes,
         teacherId: form.teacherId || undefined,
+        isPermanent: form.isPermanent,
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['schedules'] })
       qc.invalidateQueries({ queryKey: ['groups'] })
       qc.invalidateQueries({ queryKey: ['group'] })
       setShowForm(false)
+    },
+  })
+
+  const togglePermanentMutation = useMutation({
+    mutationFn: ({ id, isPermanent }: { id: string; isPermanent: boolean }) =>
+      api.updateSchedule(id, { isPermanent }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['schedules'] })
+      qc.invalidateQueries({ queryKey: ['groups'] })
+      qc.invalidateQueries({ queryKey: ['group'] })
     },
   })
 
@@ -121,6 +133,9 @@ export function SchedulePage() {
         showGroup={filterGroup === 'all'}
         onAddDay={openAddForDay}
         onDelete={(id) => removeSchedule.mutate(id)}
+        onTogglePermanent={(id, current) =>
+          togglePermanentMutation.mutate({ id, isPermanent: !current })
+        }
       />
 
       {showForm && (
@@ -164,7 +179,7 @@ export function SchedulePage() {
                   value={form.dayOfWeek}
                   onChange={(e) => setForm({ ...form, dayOfWeek: Number(e.target.value) })}
                 >
-                  {DAY_NAMES.map((day, i) => (
+                  {getDayNames().map((day, i) => (
                     <option key={i} value={i}>
                       {day}
                     </option>
@@ -194,6 +209,18 @@ export function SchedulePage() {
                   onChange={(e) => setForm({ ...form, notes: e.target.value })}
                   placeholder={t('groups.notesPlaceholder')}
                 />
+              </div>
+              <div className="sm:col-span-2 flex items-center gap-3 pt-1">
+                <input
+                  type="checkbox"
+                  id="isPermanent"
+                  checked={form.isPermanent}
+                  onChange={(e) => setForm({ ...form, isPermanent: e.target.checked })}
+                  className="w-4 h-4 rounded border-border text-accent focus:ring-accent accent-accent cursor-pointer"
+                />
+                <label htmlFor="isPermanent" className="text-sm font-medium text-foreground cursor-pointer select-none">
+                  {t('schedule.isPermanent')}
+                </label>
               </div>
             </div>
             <div className="flex gap-3 mt-4">

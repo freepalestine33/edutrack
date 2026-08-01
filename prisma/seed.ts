@@ -102,6 +102,8 @@ async function main() {
     { firstName: 'Amine', lastName: 'Touati', group: g3ASB, used: 0 },
   ]
 
+  const createdStudents: Array<{ studentId: string; subscriptionId: string }> = []
+
   for (const s of studentsData) {
     const student = await prisma.student.create({
       data: {
@@ -118,7 +120,7 @@ async function main() {
     })
 
     const remaining = plan8.sessionsCount - s.used
-    await prisma.subscription.create({
+    const subscription = await prisma.subscription.create({
       data: {
         enrollmentId: enrollment.id,
         planId: plan8.id,
@@ -128,7 +130,23 @@ async function main() {
         status: computeStatus(remaining),
       },
     })
+
+    createdStudents.push({ studentId: student.id, subscriptionId: subscription.id })
   }
+
+  await prisma.payment.createMany({
+    data: createdStudents.map(({ studentId, subscriptionId }, index) => ({
+      orgId: org.id,
+      studentId,
+      subscriptionId,
+      amount: 1500,
+      currency: 'DZD',
+      method: 'CASH',
+      type: 'SUBSCRIPTION',
+      paidAt: new Date(),
+      receiptUrl: null,
+    })),
+  })
 
   await prisma.expense.createMany({
     data: [

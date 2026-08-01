@@ -7,16 +7,17 @@ import { api, type Subscription } from '@/lib/api'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
 import { StatusBadge } from '@/components/StatusBadge'
 import { Button } from '@/components/ui/Button'
-import { Select, Label } from '@/components/ui/Input'
+import { Label, Select } from '@/components/ui/Input'
 import { formatCurrency } from '@/lib/utils'
-import { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 
 export function GroupSubscriptionsPage() {
   const { groupId } = useParams()
   const { t } = useTranslation()
   const qc = useQueryClient()
   const [renewFor, setRenewFor] = useState<string | null>(null)
-  const [planId, setPlanId] = useState('')
+  const [planSelection, setPlanSelection] = useState<Record<string, string>>({})
+  const [extraSessions, setExtraSessions] = useState<Record<string, number>>({})
 
   const { data: plans = [] } = useQuery({
     queryKey: ['plans'],
@@ -28,6 +29,16 @@ export function GroupSubscriptionsPage() {
     queryFn: () => api.getGroupSubscriptions(groupId!),
     enabled: !!groupId,
   })
+
+  const [visibleCount, setVisibleCount] = useState(100)
+
+  useEffect(() => {
+    if (!renewFor || !plans.length) return
+    setPlanSelection((current) => {
+      if (current[renewFor]) return current
+      return { ...current, [renewFor]: plans[0].id }
+    })
+  }, [plans, renewFor])
 
   const updateSubscriptionInCache = (updated: Subscription) => {
     qc.setQueryData<Subscription[]>(['group-subscriptions', groupId], (current) => {
@@ -58,7 +69,7 @@ export function GroupSubscriptionsPage() {
   }
 
   const renew = useMutation({
-    mutationFn: (data: { enrollmentId: string; subscriptionId?: string; planId: string }) =>
+    mutationFn: (data: { enrollmentId: string; subscriptionId?: string; planId?: string; extraSessions?: number }) =>
       api.renewSubscription(groupId!, data),
     onSuccess: (updatedSubscription) => {
       updateSubscriptionInCache(updatedSubscription)
@@ -66,7 +77,8 @@ export function GroupSubscriptionsPage() {
       qc.invalidateQueries({ queryKey: ['group-subscriptions', groupId] })
       qc.invalidateQueries({ queryKey: ['dashboard'] })
       setRenewFor(null)
-      setPlanId('')
+      setPlanSelection((current) => ({ ...current, [updatedSubscription.enrollment.id]: '' }))
+      setExtraSessions((current) => ({ ...current, [updatedSubscription.enrollment.id]: 0 }))
     },
     onError: (error) => {
       console.error('Renewal failed:', error)
@@ -90,6 +102,8 @@ export function GroupSubscriptionsPage() {
     if (!items.length) return null
     const borderColor =
       variant === 'danger' ? 'border-red-500/30' : variant === 'warning' ? 'border-amber-500/30' : 'border-border/30'
+    const visibleItems = items.slice(0, visibleCount)
+    const hasMore = items.length > visibleCount
 
     return (
       <Card className={`border ${borderColor}`}>
@@ -97,7 +111,7 @@ export function GroupSubscriptionsPage() {
           <CardTitle className="text-base">{title}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
-          {items.map((sub) => (
+          {visibleItems.map((sub) => (
             <div key={sub.id} className="p-4 rounded-xl bg-surface">
               <div className="flex items-start justify-between gap-3">
                 <div>
@@ -125,15 +139,25 @@ export function GroupSubscriptionsPage() {
                 <StatusBadge status={sub.status} />
               </div>
 
-              {(sub.status === 'EXPIRED' || sub.status === 'WARNING') && (
+              {sub && (
                 <div className="mt-3 pt-3 border-t border-border/40">
                   {renewFor === sub.enrollment.id ? (
                     <div className="space-y-2">
                       <div className="flex items-end gap-2">
                         <div className="flex-1">
                           <Label>{t('groups.selectPlan')}</Label>
-                          <Select value={planId} onChange={(e) => setPlanId(e.target.value)}>
-                            <option value="">{t('groups.selectPlan')}</option>
+                          <Select
+                            value={planSelection[sub.enrollment.id] ?? ''}
+                            onChange={(e) =>
+                              setPlanSelection((current) => ({
+                                ...current,
+                                [sub.enrollment.id]: e.target.value,
+                              }))
+                            }
+                          >
+                            <option value="" disabled>
+                              {t('groups.selectPlanPlaceholder', 'اختر الباقة')}
+                            </option>
                             {plans.map((p) => (
                               <option key={p.id} value={p.id}>
                                 {p.name || 'Plan'} — {formatCurrency(p.price)}
@@ -141,11 +165,28 @@ export function GroupSubscriptionsPage() {
                             ))}
                           </Select>
                         </div>
+
+                        <div className="w-28">
+                          <Label>{t('groups.extraSessions', 'حصص إضافية')}</Label>
+                          <input
+                            type="number"
+                            min={0}
+                            className="flex h-10 w-full rounded-xl border border-border bg-card px-3 py-2 text-sm text-foreground"
+                            value={extraSessions[sub.enrollment.id] ?? 0}
+                            onChange={(e) => setExtraSessions((cur) => ({ ...cur, [sub.enrollment.id]: Number(e.target.value) }))}
+                          />
+                        </div>
+
                         <Button
                           size="sm"
-                          disabled={!planId || renew.isPending}
+                          disabled={
+                            renew.isPending || (!planSelection[sub.enrollment.id] && !(extraSessions[sub.enrollment.id] > 0))
+                          }
                           onClick={() => {
-                            renew.mutate({ enrollmentId: sub.enrollment.id, subscriptionId: sub.id, planId })
+                            const selectedPlanId = planSelection[sub.enrollment.id]
+                            const extras = extraSessions[sub.enrollment.id]
+                            if (!selectedPlanId && !(extras > 0)) return
+                            renew.mutate({ enrollmentId: sub.enrollment.id, subscriptionId: sub.id, planId: selectedPlanId, extraSessions: extras })
                           }}
                         >
                           {t('groups.renew')}
@@ -154,8 +195,9 @@ export function GroupSubscriptionsPage() {
                           {t('common.cancel')}
                         </Button>
                       </div>
-                      {planId && (() => {
-                        const selectedPlan = plans.find((p) => p.id === planId)
+                      {((planSelection[sub.enrollment.id] ?? plans[0]?.id) || '') && (() => {
+                        const selectedPlanId = planSelection[sub.enrollment.id] ?? plans[0]?.id
+                        const selectedPlan = plans.find((p) => p.id === selectedPlanId)
                         if (!selectedPlan) return null
                         const carryOver = Math.max(0, sub.sessionsRemaining)
                         const total = carryOver + selectedPlan.sessionsCount
@@ -171,7 +213,19 @@ export function GroupSubscriptionsPage() {
                       })()}
                     </div>
                   ) : (
-                    <Button variant="secondary" size="sm" onClick={() => setRenewFor(sub.enrollment.id)}>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => {
+                        // Set a stable selected plan value before opening the native <select>
+                        // to avoid changing the controlled `value` while the dropdown is open
+                        setPlanSelection((current) => ({
+                          ...current,
+                          [sub.enrollment.id]: current[sub.enrollment.id] || plans[0]?.id || '',
+                        }))
+                        setRenewFor(sub.enrollment.id)
+                      }}
+                    >
                       <RefreshCw className="w-3 h-3" />
                       {t('groups.renewSubscription')}
                     </Button>
@@ -180,6 +234,14 @@ export function GroupSubscriptionsPage() {
               )}
             </div>
           ))}
+
+          {hasMore && (
+            <div className="flex justify-center pt-2">
+              <Button size="sm" variant="secondary" onClick={() => setVisibleCount((count) => count + 100)}>
+                {t('groups.loadMore', 'عرض المزيد')}
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
     )

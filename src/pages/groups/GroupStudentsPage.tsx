@@ -11,8 +11,10 @@ import {
   Mail,
   CreditCard,
   RefreshCw,
+  Trash2,
 } from 'lucide-react'
 import { api } from '@/lib/api'
+import { invalidateStudentData } from '@/lib/invalidate'
 import { Button } from '@/components/ui/Button'
 import { Input, Label, Select } from '@/components/ui/Input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
@@ -48,11 +50,15 @@ export function GroupStudentsPage() {
         planId: data.planId || undefined,
       }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['group', groupId] })
-      qc.invalidateQueries({ queryKey: ['dashboard'] })
+      invalidateStudentData(qc, groupId)
       setShowForm(false)
       setForm({ firstName: '', lastName: '', phone: '', email: '', planId: '' })
     },
+  })
+
+  const removeStudent = useMutation({
+    mutationFn: (enrollmentId: string) => api.deleteEnrollment(enrollmentId),
+    onSuccess: () => invalidateStudentData(qc, groupId),
   })
 
   const enrollments = group.enrollments ?? []
@@ -146,8 +152,9 @@ export function GroupStudentsPage() {
 
           const presentTotal = attendanceDots.filter((d) => d.status === 'PRESENT').length
           const absentTotal = attendanceDots.filter((d) => d.status === 'ABSENT').length
-          const attendanceRate = attendanceDots.length > 0
-            ? Math.round((presentTotal / attendanceDots.length) * 100)
+          const markedTotal = presentTotal + absentTotal
+          const attendanceRate = markedTotal > 0
+            ? Math.round((presentTotal / markedTotal) * 100)
             : null
 
           return (
@@ -198,9 +205,25 @@ export function GroupStudentsPage() {
                   </div>
                 </div>
 
-                {/* Chevron */}
-                <div className="shrink-0 text-muted">
-                  {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                {/* Chevron + delete */}
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      if (window.confirm(`${t('students.confirmRemove', 'Remove')} ${enr.student.firstName} ${enr.student.lastName}?`)) {
+                        removeStudent.mutate(enr.id)
+                      }
+                    }}
+                    disabled={removeStudent.isPending}
+                    className="p-2 rounded-lg text-muted hover:text-red-500 hover:bg-red-500/10 transition-colors"
+                    title={t('students.removeFromGroup', 'Remove from group')}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                  <div className="text-muted">
+                    {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                  </div>
                 </div>
               </button>
 

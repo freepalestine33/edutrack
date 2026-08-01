@@ -1,10 +1,10 @@
 import { Router } from 'express'
 import { prisma } from '../lib/prisma'
-import { requireAuth } from '../middleware/auth'
+import { requireAuthPremium } from '../middleware/auth'
 
 export const studentRouter = Router()
 
-studentRouter.get('/students', requireAuth, async (req, res) => {
+studentRouter.get('/students', requireAuthPremium, async (req, res) => {
   try {
     const orgId = req.auth!.orgId
     const students = await prisma.student.findMany({
@@ -26,7 +26,7 @@ studentRouter.get('/students', requireAuth, async (req, res) => {
   }
 })
 
-studentRouter.post('/students', requireAuth, async (req, res) => {
+studentRouter.post('/students', requireAuthPremium, async (req, res) => {
   try {
     const orgId = req.auth!.orgId
     const { firstName, lastName, phone, email } = req.body
@@ -42,5 +42,23 @@ studentRouter.post('/students', requireAuth, async (req, res) => {
   } catch (err) {
     console.error('Error creating student:', err)
     res.status(500).json({ error: 'Failed to create student' })
+  }
+})
+
+studentRouter.delete('/students/:id', requireAuthPremium, async (req, res) => {
+  try {
+    const orgId = req.auth!.orgId
+    const student = await prisma.student.findFirst({
+      where: { id: String(req.params.id), orgId },
+    })
+    if (!student) {
+      return res.status(404).json({ error: 'Student not found in your organization' })
+    }
+
+    await prisma.student.delete({ where: { id: student.id } })
+    res.json({ ok: true, deletedId: student.id })
+  } catch (err) {
+    console.error('Error deleting student:', err)
+    res.status(500).json({ error: 'Failed to delete student' })
   }
 })

@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { prisma } from '../lib/prisma'
-import { hashPassword, publicUser, requireAuth, signToken } from '../middleware/auth'
+import { hashPassword, publicUser, publicUserSelect, requireAuth, signToken } from '../middleware/auth'
 import { withPremium } from '../lib/subscription.utils'
 
 export const organizationRouter = Router()
@@ -10,11 +10,10 @@ organizationRouter.get('/organization', requireAuth, async (req, res) => {
     const orgId = req.auth!.orgId
     const org = await prisma.organization.findUnique({
       where: { id: orgId },
-      include: { users: true, subjects: true },
+      include: { users: { select: publicUserSelect }, subjects: true },
     })
     if (!org) {
-      // Return 401 so the client clears its stale token and redirects to login
-      return res.status(401).json({ error: 'Organization not found — please sign in again' })
+      return res.status(404).json({ error: 'Organization not found' })
     }
     res.json(withPremium(org))
   } catch (err) {
@@ -52,11 +51,12 @@ organizationRouter.post('/organization', async (req, res) => {
           create: { name: 'General', code: 'GEN' },
         },
       },
-      include: { users: true, subjects: true },
+      include: { users: { select: publicUserSelect }, subjects: true },
     })
 
     const user = publicUser(org.users[0])
-    res.status(201).json({ org: { ...org, users: org.users.map(publicUser) }, user, token: signToken(user) })
+    const { users, ...orgRest } = org
+    res.status(201).json({ org: { ...orgRest, users: users.map(publicUser) }, user, token: signToken(user) })
   } catch (err) {
     console.error('Error creating organization:', err)
     res.status(500).json({ error: 'Failed to create organization' })
@@ -64,8 +64,8 @@ organizationRouter.post('/organization', async (req, res) => {
 })
 
 organizationRouter.post('/account/start-trial', requireAuth, async (req, res) => {
-  const { duration = 15, durationUnit = 'days' } = req.body
   const orgId = req.auth!.orgId
+  const TRIAL_DAYS = 15
 
   try {
     const org = await prisma.organization.findUnique({ where: { id: orgId } })
@@ -76,8 +76,7 @@ organizationRouter.post('/account/start-trial', requireAuth, async (req, res) =>
     if (existingExpires > Date.now()) return res.status(400).json({ error: 'An active premium period is already running' })
 
     const now = Date.now()
-    const durationMs = durationUnit === 'days' ? duration * 24 * 60 * 60 * 1000 : duration * 30 * 24 * 60 * 60 * 1000
-    const expires = new Date(now + durationMs)
+    const expires = new Date(now + TRIAL_DAYS * 24 * 60 * 60 * 1000)
 
     const updated = await prisma.organization.update({
       where: { id: orgId },
@@ -91,7 +90,7 @@ organizationRouter.post('/account/start-trial', requireAuth, async (req, res) =>
         action: 'start_trial',
         entityType: 'Organization',
         entityId: orgId,
-        payload: JSON.stringify({ expires, duration, durationUnit }),
+        payload: JSON.stringify({ expires, duration: TRIAL_DAYS, durationUnit: 'days' }),
       },
     })
 

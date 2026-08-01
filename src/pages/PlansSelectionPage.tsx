@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { Check, Zap, Calendar, Crown } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { useAppStore } from '@/store/app'
@@ -8,55 +9,56 @@ import { api } from '@/lib/api'
 const PLANS = [
   {
     id: 'trial',
-    name: 'Free Trial',
-    description: 'Try all features for free',
+    name: 'تجربة مجانية',
+    description: 'جرّب كل المميزات مجانًا',
     duration: 15,
     durationUnit: 'days',
     price: 0,
     currency: 'DZD',
-    features: ['Full access to all features', '15 days trial period', 'No credit card required', 'Cancel anytime'],
+    features: ['وصول كامل لكل المميزات', 'مدة تجربة 15 يومًا', 'لا تحتاج بطاقة ائتمان', 'إلغاء في أي وقت'],
     icon: Zap,
     color: 'from-blue-500 to-cyan-500'
   },
   {
     id: '100students',
-    name: 'Up to 100 Students',
-    description: 'Perfect for small groups',
+    name: 'حتى 100 طالب',
+    description: 'مثالية للمجموعات الصغيرة',
     duration: 1,
     durationUnit: 'year',
     price: 6500,
     currency: 'DZD',
-    features: ['Full access to all features', '1 year validity', 'Priority support', 'Data backup'],
+    features: ['وصول كامل لكل المميزات', 'صلاحية سنة واحدة', 'دعم ذات أولوية', 'نسخ احتياطي للبيانات'],
     icon: Calendar,
     color: 'from-purple-500 to-pink-500'
   },
   {
     id: '250students',
-    name: 'Up to 250 Students',
-    description: 'Perfect for medium groups',
+    name: 'حتى 250 طالبًا',
+    description: 'مناسبة للمجموعات المتوسطة',
     duration: 1,
     durationUnit: 'year',
     price: 7900,
     currency: 'DZD',
-    features: ['Full access to all features', '1 year validity', 'Priority support', 'Data backup', 'Advanced analytics'],
+    features: ['وصول كامل لكل المميزات', 'صلاحية سنة واحدة', 'دعم ذات أولوية', 'نسخ احتياطي للبيانات', 'تحليلات متقدمة'],
     icon: Crown,
     color: 'from-amber-500 to-orange-500'
   },
   {
     id: '500students',
-    name: 'Up to 500 Students',
-    description: 'Perfect for large groups',
+    name: 'حتى 500 طالب',
+    description: 'مثالية للمجموعات الكبيرة',
     duration: 1,
     durationUnit: 'year',
     price: 9500,
     currency: 'DZD',
-    features: ['Full access to all features', '1 year validity', 'Priority support', 'Data backup', 'Advanced analytics', 'Dedicated manager'],
+    features: ['وصول كامل لكل المميزات', 'صلاحية سنة واحدة', 'دعم ذات أولوية', 'نسخ احتياطي للبيانات', 'تحليلات متقدمة', 'مدير مخصص'],
     icon: Crown,
     color: 'from-emerald-500 to-teal-500'
   }
 ]
 
 export function PlansSelectionPage() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const { session, clearNewUserFlag } = useAppStore()
   const [loading, setLoading] = useState<string | null>(null)
@@ -65,7 +67,7 @@ export function PlansSelectionPage() {
   const handleSelectPlan = async (planId: string) => {
     const token = session?.token || useAppStore.getState().token
     if (!token) {
-      setError('Please sign in to select a plan')
+      setError(t('plansSelection.loginRequired', 'يرجى تسجيل الدخول لاختيار باقة'))
       navigate('/onboarding')
       return
     }
@@ -101,7 +103,7 @@ export function PlansSelectionPage() {
       navigate('/')
     } catch (err) {
       console.error('Plan selection error:', err)
-      setError(err instanceof Error ? err.message : 'Failed to select plan')
+      setError(err instanceof Error ? err.message : t('plansSelection.selectFailed', 'فشل اختيار الباقة'))
     } finally {
       setLoading(null)
     }
@@ -112,10 +114,10 @@ export function PlansSelectionPage() {
       <div className="w-full max-w-6xl animate-fade-in">
         <div className="text-center mb-12">
           <h1 className="text-4xl font-semibold tracking-tight text-foreground mb-4">
-            Choose Your Plan
+            {t('plansSelection.title', 'اختر باقتك')}
           </h1>
           <p className="text-muted text-lg">
-            Start with a free trial or upgrade to unlock full potential
+            {t('plansSelection.subtitle', 'ابدأ بتجربة مجانية أو اختر باقة للترقية')}
           </p>
         </div>
 
@@ -136,11 +138,11 @@ export function PlansSelectionPage() {
                 
                 <div className="mb-6">
                   <span className="text-4xl font-bold">
-                    {plan.price === 0 ? 'Free' : `${plan.price} ${plan.currency}`}
+                    {plan.price === 0 ? t('plansSelection.free', 'مجاني') : `${plan.price} ${plan.currency}`}
                   </span>
                   {plan.price > 0 && (
                     <span className="text-muted text-sm ml-2">
-                      / year
+                      / {t('plansSelection.year', 'سنة')}
                     </span>
                   )}
                 </div>
@@ -160,7 +162,7 @@ export function PlansSelectionPage() {
                   disabled={loading !== null}
                   onClick={() => handleSelectPlan(plan.id)}
                 >
-                  {loading === plan.id ? 'Processing...' : plan.price === 0 ? 'Start Free Trial' : 'Select Plan'}
+                  {loading === plan.id ? t('plansSelection.processing', 'جاري المعالجة...') : plan.price === 0 ? t('plansSelection.startTrial', 'ابدأ التجربة المجانية') : t('plansSelection.selectPlan', 'اختر الباقة')}
                 </Button>
               </div>
             )

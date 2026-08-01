@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { api } from '@/lib/api'
 import { Card, CardContent } from '@/components/ui/Card'
 import { PageHeader, LoadingState } from '@/components/PageHeader'
-import { DAY_NAMES } from '@/lib/utils'
+import { getDayNames } from '@/lib/utils'
 
 export function ClassesPage() {
   const { t } = useTranslation()
@@ -41,7 +41,7 @@ export function ClassesPage() {
                       key={s.id}
                       className="text-xs px-2.5 py-1 rounded-lg bg-surface text-muted font-medium"
                     >
-                      {DAY_NAMES[s.dayOfWeek]} {s.startTime}–{s.endTime}
+                      {getDayNames()[s.dayOfWeek]} {s.startTime}–{s.endTime}
                     </span>
                   ))}
                 </div>

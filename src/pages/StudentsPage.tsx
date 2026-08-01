@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { Plus, ChevronDown, ChevronRight } from 'lucide-react'
+import { Plus, ChevronDown, ChevronRight, Trash2 } from 'lucide-react'
 import { api } from '@/lib/api'
+import { invalidateStudentData } from '@/lib/invalidate'
 import { Button } from '@/components/ui/Button'
 import { Input, Label, Select } from '@/components/ui/Input'
 import { Card, CardContent } from '@/components/ui/Card'
@@ -41,11 +42,20 @@ export function StudentsPage() {
             email: payload.email,
           }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['students'] })
-      qc.invalidateQueries({ queryKey: ['dashboard'] })
+      invalidateStudentData(qc)
       setForm({ firstName: '', lastName: '', phone: '', email: '', groupId: '' })
       setShowForm(false)
     },
+  })
+
+  const removeEnrollment = useMutation({
+    mutationFn: (enrollmentId: string) => api.deleteEnrollment(enrollmentId),
+    onSuccess: () => invalidateStudentData(qc),
+  })
+
+  const removeStudent = useMutation({
+    mutationFn: (studentId: string) => api.deleteStudent(studentId),
+    onSuccess: () => invalidateStudentData(qc),
   })
 
   if (isLoading) return <LoadingState />
@@ -129,25 +139,37 @@ export function StudentsPage() {
               {isOpen && (
                 <div className="mt-3 grid gap-3 md:grid-cols-2">
                   {members.map((student) => {
-                    const sub = student.enrollments?.[0]?.subscriptions?.[0]
+                    const enrollment = student.enrollments?.find((e) => e.class?.id === group.id)
+                    const sub = enrollment?.subscriptions?.[0]
                     return (
                       <Card key={student.id} className="hover:card-shadow-lg transition-shadow duration-200">
-                        <CardContent className="py-4 flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-accent-muted flex items-center justify-center text-accent text-sm font-semibold">
+                        <CardContent className="py-4 flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-10 h-10 rounded-full bg-accent-muted flex items-center justify-center text-accent text-sm font-semibold shrink-0">
                               {student.firstName.charAt(0)}{student.lastName.charAt(0)}
                             </div>
-                            <div>
+                            <div className="min-w-0">
                               <p className="font-medium text-foreground">{student.firstName} {student.lastName}</p>
                               <p className="text-sm text-muted">{[student.phone, student.email].filter(Boolean).join(' · ')}</p>
-                              {student.enrollments?.[0]?.class && (
-                                <p className="text-xs text-muted mt-0.5">
-                                  {student.enrollments[0].class.subject?.name} — {student.enrollments[0].class.name}
-                                </p>
-                              )}
                             </div>
                           </div>
-                          {sub && <StatusBadge status={sub.status} />}
+                          <div className="flex items-center gap-2 shrink-0">
+                            {sub && <StatusBadge status={sub.status} />}
+                            {enrollment && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (window.confirm(`${t('students.confirmRemove', 'Remove')} ${student.firstName}?`)) {
+                                    removeEnrollment.mutate(enrollment.id)
+                                  }
+                                }}
+                                className="p-2 rounded-lg text-muted hover:text-red-500 hover:bg-red-500/10"
+                                title={t('students.removeFromGroup', 'Remove from group')}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            )}
+                          </div>
                         </CardContent>
                       </Card>
                     )
@@ -169,9 +191,9 @@ export function StudentsPage() {
               <div className="grid gap-3 md:grid-cols-2">
                 {ungrouped.map((student) => (
                   <Card key={student.id} className="hover:card-shadow-lg transition-shadow duration-200">
-                    <CardContent className="py-4 flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-accent-muted flex items-center justify-center text-accent text-sm font-semibold">
+                    <CardContent className="py-4 flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-10 h-10 rounded-full bg-accent-muted flex items-center justify-center text-accent text-sm font-semibold shrink-0">
                           {student.firstName.charAt(0)}{student.lastName.charAt(0)}
                         </div>
                         <div>
@@ -179,6 +201,18 @@ export function StudentsPage() {
                           <p className="text-sm text-muted">{[student.phone, student.email].filter(Boolean).join(' · ')}</p>
                         </div>
                       </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (window.confirm(`${t('students.confirmDelete', 'Delete')} ${student.firstName} ${student.lastName}?`)) {
+                            removeStudent.mutate(student.id)
+                          }
+                        }}
+                        className="p-2 rounded-lg text-muted hover:text-red-500 hover:bg-red-500/10 shrink-0"
+                        title={t('students.delete', 'Delete student')}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </CardContent>
                   </Card>
                 ))}

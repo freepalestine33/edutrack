@@ -50,9 +50,9 @@ export function UpgradePage() {
     setMessage('')
     try {
       await reqMutation.mutateAsync({ planId: plan || undefined, amount, currency: 'DZD' })
-      setMessage('Request submitted. It is now visible in Subscription Requests.')
+      setMessage(t('upgrade.requestSubmitted', 'تم إرسال الطلب. أصبح مرئيًا الآن في طلبات الاشتراك.'))
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Unable to submit your request.')
+      setMessage(error instanceof Error ? error.message : t('upgrade.requestFailed', 'تعذر إرسال طلبك.'))
     }
   }
 
@@ -86,18 +86,15 @@ export function UpgradePage() {
               <div>
                 <div className="flex items-center gap-3 flex-wrap">
                   <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
-                    {t('upgrade.activeTitle', 'Active Premium Subscription')}
+                    {t('upgrade.activeTitle')}
                   </h1>
                   <span className="px-3.5 py-1 rounded-full bg-emerald-400/30 backdrop-blur-md border border-emerald-300/40 text-xs font-bold text-emerald-100 flex items-center gap-1.5 shadow-sm">
                     <span className="w-2 h-2 rounded-full bg-emerald-300 animate-ping" />
-                    PRO ACTIVE
+                    {t('upgrade.proActive')}
                   </span>
                 </div>
                 <p className="mt-1 text-emerald-100/90 text-sm max-w-xl">
-                  {t(
-                    'upgrade.activeSubtitle',
-                    'Your organization has full unlimited access to all features. All study groups, attendance, and finance features are active.'
-                  )}
+                  {t('upgrade.activeSubtitle')}
                 </p>
               </div>
             </div>
@@ -109,7 +106,7 @@ export function UpgradePage() {
               className="self-start md:self-auto px-5 py-2.5 rounded-xl bg-white/15 hover:bg-white/25 text-white text-sm font-medium backdrop-blur-md border border-white/20 transition-all flex items-center gap-2 shadow-sm"
             >
               <MessageCircle className="w-4.5 h-4.5 text-cyan-200" />
-              {t('upgrade.supportTelegram', 'Support Telegram')}
+              {t('upgrade.supportTelegram')}
             </a>
           </div>
         </div>
@@ -141,7 +138,7 @@ export function UpgradePage() {
                   {premium.days}
                 </span>
                 <span className="text-xs font-semibold uppercase tracking-wider text-muted mt-1">
-                  {t('upgrade.days', 'Days')}
+                  {t('upgrade.days')}
                 </span>
               </div>
 
@@ -151,7 +148,7 @@ export function UpgradePage() {
                   {String(premium.hours).padStart(2, '0')}
                 </span>
                 <span className="text-xs font-semibold uppercase tracking-wider text-muted mt-1">
-                  {t('upgrade.hours', 'Hours')}
+                  {t('upgrade.hours')}
                 </span>
               </div>
 
@@ -161,7 +158,7 @@ export function UpgradePage() {
                   {String(premium.minutes).padStart(2, '0')}
                 </span>
                 <span className="text-xs font-semibold uppercase tracking-wider text-muted mt-1">
-                  {t('upgrade.minutes', 'Minutes')}
+                  {t('upgrade.minutes')}
                 </span>
               </div>
 
@@ -171,7 +168,7 @@ export function UpgradePage() {
                   {String(premium.seconds).padStart(2, '0')}
                 </span>
                 <span className="text-xs font-semibold uppercase tracking-wider text-accent/90 mt-1">
-                  {t('upgrade.seconds', 'Seconds')}
+                  {t('upgrade.seconds')}
                 </span>
               </div>
             </div>
@@ -180,14 +177,11 @@ export function UpgradePage() {
             <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-start gap-3">
               <ShieldCheck className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
               <div className="text-sm">
-                <p className="font-semibold text-foreground">
-                  {t('upgrade.realtimeTitle', 'Real-Time Expiry Protection')}
+                  <p className="font-semibold text-foreground">
+                  {t('upgrade.realtimeTitle')}
                 </p>
                 <p className="text-muted mt-0.5">
-                  {t(
-                    'upgrade.realtimeDesc',
-                    'Your subscription runs down to the exact second stored in the system. When your access expires, your data remains 100% safe and secure.'
-                  )}
+                  {t('upgrade.realtimeDesc')}
                 </p>
               </div>
             </div>
@@ -205,20 +199,20 @@ export function UpgradePage() {
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
               {[
-                'Unlimited Students & Study Groups',
-                'Automated Attendance & Session Tracking',
-                'Digital PDF Receipts & Exports',
-                'WhatsApp & Email Receipt Notifications',
-                'Full Financial Revenue & Expense Reports',
-                'Weekly Schedules & Multi-Teacher Support',
-                'Priority Telegram Customer Support',
-                'Cloud Backups & Instant Updates',
-              ].map((feature, i) => (
+                'feature.unlimitedStudents',
+                'feature.attendance',
+                'feature.pdf',
+                'feature.notifications',
+                'feature.reports',
+                'feature.schedules',
+                'feature.prioritySupport',
+                'feature.backups',
+              ].map((key, i) => (
                 <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-surface/50 border border-border/40">
                   <div className="w-6 h-6 rounded-full bg-emerald-500/15 flex items-center justify-center text-emerald-500 shrink-0">
                     <CheckCircle2 className="w-4 h-4" />
                   </div>
-                  <span className="text-sm font-medium text-foreground">{feature}</span>
+                  <span className="text-sm font-medium text-foreground">{t(`upgrade.${key}`)}</span>
                 </div>
               ))}
             </div>
@@ -307,13 +301,13 @@ export function UpgradePage() {
               }`}
             >
               <div className="flex items-center justify-between mb-2">
-                <h3 className="font-bold text-lg">100 Students</h3>
+                <h3 className="font-bold text-lg">{t('upgrade.plan.100.title')}</h3>
                 <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-surface text-muted border border-border/40">
-                  Starter
+                  {t('upgrade.plan.100.tag')}
                 </span>
               </div>
               <p className="text-2xl font-black text-foreground">
-                6500 <span className="text-sm font-medium text-muted">DZD</span>
+                {t('upgrade.plan.100.price')} <span className="text-sm font-medium text-muted">DZD</span>
               </p>
               <Button
                 variant={plan === '100students' ? 'primary' : 'secondary'}
@@ -323,7 +317,7 @@ export function UpgradePage() {
                   selectPlan('100students')
                 }}
               >
-                {plan === '100students' ? 'Selected' : 'Select Plan'}
+                {plan === '100students' ? t('upgrade.selected') : t('upgrade.selectPlanBtn')}
               </Button>
             </div>
 
@@ -337,13 +331,13 @@ export function UpgradePage() {
               }`}
             >
               <div className="flex items-center justify-between mb-2">
-                <h3 className="font-bold text-lg">250 Students</h3>
+                <h3 className="font-bold text-lg">{t('upgrade.plan.250.title')}</h3>
                 <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-surface text-muted border border-border/40">
-                  Pro
+                  {t('upgrade.plan.250.tag')}
                 </span>
               </div>
               <p className="text-2xl font-black text-foreground">
-                7900 <span className="text-sm font-medium text-muted">DZD</span>
+                {t('upgrade.plan.250.price')} <span className="text-sm font-medium text-muted">DZD</span>
               </p>
               <Button
                 variant={plan === '250students' ? 'primary' : 'secondary'}
@@ -353,7 +347,7 @@ export function UpgradePage() {
                   selectPlan('250students')
                 }}
               >
-                {plan === '250students' ? 'Selected' : 'Select Plan'}
+                {plan === '250students' ? t('upgrade.selected') : t('upgrade.selectPlanBtn')}
               </Button>
             </div>
 
@@ -367,16 +361,16 @@ export function UpgradePage() {
               }`}
             >
               <div className="absolute -top-3 right-4 px-3 py-0.5 rounded-full bg-accent text-white text-xs font-bold shadow-sm">
-                Max
+                {t('upgrade.max', 'الأقصى')}
               </div>
               <div className="flex items-center justify-between mb-2">
-                <h3 className="font-bold text-lg">500 Students</h3>
+                <h3 className="font-bold text-lg">{t('upgrade.plan.500.title')}</h3>
                 <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-surface text-muted border border-border/40">
-                  Enterprise
+                  {t('upgrade.plan.500.tag')}
                 </span>
               </div>
               <p className="text-2xl font-black text-foreground">
-                9500 <span className="text-sm font-medium text-muted">DZD</span>
+                {t('upgrade.plan.500.price')} <span className="text-sm font-medium text-muted">DZD</span>
               </p>
               <Button
                 variant={plan === '500students' ? 'primary' : 'secondary'}
@@ -386,7 +380,7 @@ export function UpgradePage() {
                   selectPlan('500students')
                 }}
               >
-                {plan === '500students' ? 'Selected' : 'Select Plan'}
+                {plan === '500students' ? t('upgrade.selected') : t('upgrade.selectPlanBtn')}
               </Button>
             </div>
           </div>
@@ -399,10 +393,10 @@ export function UpgradePage() {
                 onChange={(event) => selectPlan(event.target.value as '100students' | '250students' | '500students' | '')}
                 className="mt-1.5"
               >
-                <option value="">{t('upgrade.selectPlan', 'Choose a plan...')}</option>
-                <option value="100students">Up to 100 students — 6500 DZD</option>
-                <option value="250students">Up to 250 students — 7900 DZD</option>
-                <option value="500students">Up to 500 students — 9500 DZD</option>
+                <option value="">{t('upgrade.selectPlan')}</option>
+                <option value="100students">{`${t('upgrade.plan.100.title')} — ${t('upgrade.plan.100.price')} DZD`}</option>
+                <option value="250students">{`${t('upgrade.plan.250.title')} — ${t('upgrade.plan.250.price')} DZD`}</option>
+                <option value="500students">{`${t('upgrade.plan.500.title')} — ${t('upgrade.plan.500.price')} DZD`}</option>
               </Select>
             </div>
 
@@ -415,7 +409,7 @@ export function UpgradePage() {
               >
                 <Button variant="secondary" className="w-full">
                   <MessageCircle className="w-4 h-4 mr-2 text-cyan-500" />
-                  {t('upgrade.contactTelegram', 'Contact on Telegram')}
+                  {t('upgrade.contactTelegram')}
                 </Button>
               </a>
 
@@ -424,7 +418,7 @@ export function UpgradePage() {
                 onClick={submitRequest}
                 disabled={!plan || reqMutation.isPending}
               >
-                {reqMutation.isPending ? 'Submitting…' : t('upgrade.request', 'Request Upgrade')}
+                {reqMutation.isPending ? t('upgrade.submitting') : t('upgrade.request')}
               </Button>
             </div>
 

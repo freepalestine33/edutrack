@@ -12,6 +12,7 @@ export function OnboardingPage() {
   const navigate = useNavigate()
   const { setSession } = useAppStore()
   const [loginMode, setLoginMode] = useState(false)
+  const [orgName, setOrgName] = useState('')
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
@@ -23,8 +24,9 @@ export function OnboardingPage() {
     setLoading(true)
     setError('')
     try {
+      const academyName = orgName.trim() || 'أكاديميتي'
       const result = await api.createOrganization({
-        name: 'My Academy',
+        name: academyName,
         type: 'tutor',
         userName: fullName,
         email,
@@ -35,14 +37,14 @@ export function OnboardingPage() {
         token: result.token,
         role: result.user.role,
         orgType: 'tutor',
-        orgName: 'My Academy',
+        orgName: academyName,
         userName: result.user.name,
         email: result.user.email
       })
       useAppStore.setState({ isNewUser: true })
       navigate('/plans')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to create account')
+      setError(err instanceof Error ? err.message : 'تعذر إنشاء الحساب')
     } finally {
       setLoading(false)
     }
@@ -64,7 +66,7 @@ export function OnboardingPage() {
       })
       navigate('/')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to sign in')
+      setError(err instanceof Error ? err.message : 'تعذر تسجيل الدخول')
     } finally { 
       setLoading(false) 
     }
@@ -85,41 +87,45 @@ export function OnboardingPage() {
 
         {loginMode ? (
           <div className="bg-card rounded-2xl border border-border p-8 card-shadow-lg space-y-5">
-            <h2 className="text-xl font-semibold">Sign in</h2>
+            <h2 className="text-xl font-semibold">تسجيل الدخول</h2>
             <div>
-              <Label>Email</Label>
-              <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@email.com" />
+              <Label>البريد الإلكتروني</Label>
+              <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="بريدك الإلكتروني" />
             </div>
             <div>
-              <Label>Password</Label>
-              <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Enter your password" />
+              <Label>كلمة المرور</Label>
+              <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="أدخل كلمة المرور" />
             </div>
             {error && <p className="text-sm text-red-600">{error}</p>}
             <Button className="w-full" size="lg" disabled={!email || !password || loading} onClick={handleLogin}>
-              {loading ? t('common.loading', 'Loading...') : 'Sign in'}
+              {loading ? t('common.loading', 'جاري التحميل...') : 'تسجيل الدخول'}
             </Button>
             <Button variant="ghost" className="w-full" onClick={() => { setLoginMode(false); setError('') }}>
-              Don't have an account? Sign up
+              ليس لديك حساب؟ سجّل الآن
             </Button>
           </div>
         ) : (
           <div className="bg-card rounded-2xl border border-border p-8 card-shadow-lg space-y-5">
-            <h2 className="text-xl font-semibold">Sign up</h2>
+            <h2 className="text-xl font-semibold">إنشاء حساب</h2>
             <div>
-              <Label>Full Name</Label>
-              <Input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Sarah Benali" />
+              <Label>اسم الأكاديمية</Label>
+              <Input value={orgName} onChange={(e) => setOrgName(e.target.value)} placeholder="أكاديميتي" />
             </div>
             <div>
-              <Label>Email</Label>
-              <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@email.com" />
+              <Label>الاسم الكامل</Label>
+              <Input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="اسمك الكامل" />
             </div>
             <div>
-              <Label>Phone Number</Label>
-              <Input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+213 555 123 456" />
+              <Label>البريد الإلكتروني</Label>
+              <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="بريدك الإلكتروني" />
             </div>
             <div>
-              <Label>Password</Label>
-              <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="At least 8 characters" />
+              <Label>الهاتف</Label>
+              <Input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="مثال: +213 555 123 456" />
+            </div>
+            <div>
+              <Label>كلمة المرور</Label>
+              <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="8 أحرف على الأقل" />
             </div>
             {error && <p className="text-sm text-red-600">{error}</p>}
             <Button 
@@ -128,10 +134,10 @@ export function OnboardingPage() {
               disabled={!fullName || !email || !phone || password.length < 8 || loading} 
               onClick={handleSignUp}
             >
-              {loading ? t('common.loading', 'Loading...') : 'Sign up'}
+              {loading ? t('common.loading', 'جاري التحميل...') : 'سجل الآن'}
             </Button>
             <Button variant="ghost" className="w-full" onClick={() => { setLoginMode(true); setError('') }}>
-              Already have an account? Sign in
+              لديك حساب؟ سجّل الدخول
             </Button>
           </div>
         )}

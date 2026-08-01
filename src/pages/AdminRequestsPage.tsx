@@ -14,6 +14,13 @@ export function AdminRequestsPage() {
   const [search, setSearch] = useState('')
   const [rejectReason, setRejectReason] = useState<Record<string, string>>({})
 
+  const statusLabels = {
+    ALL: t('admin.filterAll', 'الكل'),
+    PENDING: t('admin.filterPending', 'معلق'),
+    APPROVED: t('admin.filterApproved', 'موافق عليه'),
+    REJECTED: t('admin.filterRejected', 'مرفوض'),
+  }
+
   const { data: requests = [], isLoading, error } = useQuery({
     queryKey: ['subscription-requests'],
     queryFn: api.getSubscriptionRequests,
@@ -41,7 +48,7 @@ export function AdminRequestsPage() {
   if (error) {
     return (
       <div className="p-4 rounded-xl bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 text-sm">
-        Unable to load requests. Please verify your admin credentials and try again.
+        {t('admin.loadError', 'تعذر تحميل الطلبات. تحقق من بيانات المشرف وحاول مرة أخرى.')}
       </div>
     )
   }
@@ -67,14 +74,14 @@ export function AdminRequestsPage() {
           </div>
           <div>
             <h1 className="text-2xl font-semibold">{t('admin.requests', 'Subscription Requests')}</h1>
-            <p className="text-sm text-muted">Manage upgrade and subscription requests submitted by users and tutors across all organizations.</p>
+            <p className="text-sm text-muted">{t('admin.requestsDesc', 'إدارة طلبات الترقية والاشتراك المرسلة من المستخدمين والمدرّسين عبر جميع المؤسسات.')}</p>
           </div>
         </div>
 
         {pendingCount > 0 && (
           <div className="px-3 py-1.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 text-xs font-semibold flex items-center gap-1.5 shrink-0 self-start sm:self-auto">
             <Clock className="w-3.5 h-3.5" />
-            {pendingCount} Pending Request{pendingCount > 1 ? 's' : ''}
+            {pendingCount} {pendingCount > 1 ? t('admin.pendingRequests', 'طلبات معلقة') : t('admin.pendingRequest', 'طلب معلق')}
           </div>
         )}
       </header>
@@ -86,7 +93,7 @@ export function AdminRequestsPage() {
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by user name, email, or organization..."
+            placeholder={t('admin.searchPlaceholder', 'ابحث باسم المستخدم أو البريد أو المؤسسة...')}
             className="pl-9"
           />
         </div>
@@ -110,7 +117,7 @@ export function AdminRequestsPage() {
       {!filteredRequests.length ? (
         <Card>
           <CardContent className="py-12 text-center">
-            <p className="text-sm text-muted">No subscription requests found matching your filters.</p>
+            <p className="text-sm text-muted">{t('admin.noRequests', 'لا توجد طلبات اشتراك تطابق التصفية.')}</p>
           </CardContent>
         </Card>
       ) : (
@@ -122,17 +129,19 @@ export function AdminRequestsPage() {
 
             const planLabel =
               r.planId === '1year'
-                ? '1 Year Plan'
+                ? t('admin.planLabel.1year')
                 : r.planId === '6months'
-                ? '6 Months Plan'
-                : r.planId || 'Subscription Upgrade'
+                ? t('admin.planLabel.6months')
+                : r.planId
+                ? t('admin.planLabel.default')
+                : t('admin.planLabel.default')
 
             return (
               <Card key={r.id} className="transition-all hover:border-accent/40">
                 <CardHeader className="pb-3">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                     <CardTitle className="text-base font-semibold flex items-center gap-2">
-                      <span>{r.user?.name || 'Unknown User'}</span>
+                      <span>{r.user?.name || t('admin.unknownUser', 'مستخدم غير معروف')}</span>
                       {r.user?.role && (
                         <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-surface border text-muted">
                           {r.user.role}
@@ -155,7 +164,7 @@ export function AdminRequestsPage() {
                         {isApproved && <CheckCircle2 className="w-3.5 h-3.5" />}
                         {isRejected && <XCircle className="w-3.5 h-3.5" />}
                         {isPending && <Clock className="w-3.5 h-3.5" />}
-                        {r.status}
+                        {statusLabels[r.status] || r.status}
                       </span>
                     </div>
                   </div>
@@ -164,11 +173,11 @@ export function AdminRequestsPage() {
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs text-muted pt-1 border-t border-border/50">
                     <div className="flex items-center gap-1.5">
                       <User className="w-3.5 h-3.5 shrink-0" />
-                      <span className="truncate">{r.user?.email || 'No email provided'}</span>
+                      <span className="truncate">{r.user?.email || t('admin.noEmail', 'لا بريد إلكتروني متوفر')}</span>
                     </div>
-                    <div className="flex items-center gap-1.5">
+                            <div className="flex items-center gap-1.5">
                       <Building2 className="w-3.5 h-3.5 shrink-0" />
-                      <span className="truncate">{r.organization?.name || 'Organization N/A'}</span>
+                      <span className="truncate">{r.organization?.name || t('admin.organizationNA', 'المؤسسة غير متاحة')}</span>
                     </div>
                     <div className="flex items-center gap-1.5">
                       <Calendar className="w-3.5 h-3.5 shrink-0" />
@@ -178,7 +187,7 @@ export function AdminRequestsPage() {
 
                   {isRejected && r.reason && (
                     <div className="p-3 rounded-lg bg-surface text-xs text-muted border border-border/60">
-                      <span className="font-semibold text-foreground">Rejection Reason: </span>
+                      <span className="font-semibold text-foreground">{t('admin.rejectionReason', 'سبب الرفض:')}</span>
                       {r.reason}
                     </div>
                   )}
@@ -191,12 +200,12 @@ export function AdminRequestsPage() {
                         className="bg-emerald-600 hover:bg-emerald-700 text-white"
                       >
                         <CheckCircle2 className="w-4 h-4 mr-1.5" />
-                        {approve.isPending ? 'Approving...' : 'Approve & Activate'}
+                        {approve.isPending ? t('admin.approving', 'جاري الموافقة...') : t('admin.approveActivate', 'الموافقة والتفعيل')}
                       </Button>
 
                       <div className="flex flex-1 items-center gap-2">
                         <Input
-                          placeholder="Rejection reason (optional)"
+                          placeholder={t('admin.rejectionReasonPlaceholder', 'سبب الرفض (اختياري)')}
                           value={rejectReason[r.id] || ''}
                           onChange={(e) =>
                             setRejectReason({ ...rejectReason, [r.id]: e.target.value })
@@ -211,7 +220,7 @@ export function AdminRequestsPage() {
                           }
                         >
                           <XCircle className="w-4 h-4 mr-1.5" />
-                          Reject
+                          {t('admin.reject', 'رفض')}
                         </Button>
                       </div>
                     </div>

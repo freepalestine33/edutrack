@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
@@ -12,17 +13,39 @@ import {
   Clock,
   AlertTriangle,
 } from 'lucide-react'
-import { api } from '@/lib/api'
+import { api, type SessionItem } from '@/lib/api'
+import { invalidateSessionData } from '@/lib/invalidate'
 import { Button } from '@/components/ui/Button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
 import { StatusBadge } from '@/components/StatusBadge'
 import { LoadingState } from '@/components/PageHeader'
 import { cn } from '@/lib/utils'
 
+function formatSessionTimes(session: SessionItem) {
+  if (session.schedule) {
+    return `${session.schedule.startTime} – ${session.schedule.endTime}`
+  }
+  if (session.startedAt) {
+    const start = new Date(session.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    const end = session.endedAt
+      ? new Date(session.endedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      : '…'
+    return `${start} – ${end}`
+  }
+  return new Date(session.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+}
+
 export function GroupSessionPage() {
   const { groupId } = useParams()
   const { t } = useTranslation()
   const qc = useQueryClient()
+  const [startError, setStartError] = useState('')
+
+  const { data: group } = useQuery({
+    queryKey: ['group', groupId],
+    queryFn: () => api.getGroup(groupId!),
+    enabled: !!groupId,
+  })
 
   const {
     data: session,
@@ -37,12 +60,14 @@ export function GroupSessionPage() {
   })
 
   const startSession = useMutation({
-    mutationFn: () => api.startGroupSession(groupId!),
+    mutationFn: (scheduleId?: string) => api.startGroupSession(groupId!, scheduleId),
     onSuccess: () => {
+      setStartError('')
       refetch()
-      qc.invalidateQueries({ queryKey: ['group-session', groupId] })
-      qc.invalidateQueries({ queryKey: ['sessions-today'] })
-      qc.invalidateQueries({ queryKey: ['dashboard'] })
+      invalidateSessionData(qc, groupId)
+    },
+    onError: (err) => {
+      setStartError(err instanceof Error ? err.message : 'Failed to start session')
     },
   })
 
@@ -50,9 +75,7 @@ export function GroupSessionPage() {
     mutationFn: api.markAttendance,
     onSuccess: () => {
       refetch()
-      qc.invalidateQueries({ queryKey: ['sessions-today'] })
-      qc.invalidateQueries({ queryKey: ['group', groupId] })
-      qc.invalidateQueries({ queryKey: ['group-history', groupId] })
+      invalidateSessionData(qc, groupId)
     },
   })
 
@@ -60,14 +83,12 @@ export function GroupSessionPage() {
     mutationFn: () => api.endGroupSession(groupId!),
     onSuccess: () => {
       refetch()
-      // Invalidate queries to refresh the UI and stop the session 'active' indicators
-      qc.invalidateQueries({ queryKey: ['group-session', groupId] })
-      qc.invalidateQueries({ queryKey: ['sessions-today'] })
-      qc.invalidateQueries({ queryKey: ['dashboard'] })
-      qc.invalidateQueries({ queryKey: ['group', groupId] })
-      qc.invalidateQueries({ queryKey: ['groups'] })
+      invalidateSessionData(qc, groupId)
     },
   })
+
+  const today = new Date().getDay()
+  const todaySchedules = group?.schedules?.filter((s) => s.dayOfWeek === today) ?? []
 
   if (isLoading) return <LoadingState />
 
@@ -88,37 +109,63 @@ export function GroupSessionPage() {
     )
   }
 
-  // ──────────────────────────────────────────────────────────────
-  // NO ACTIVE SESSION
-  // ──────────────────────────────────────────────────────────────
-  if (!session || session.status === 'finished') {
+  // ── NO SESSION TODAY — show start options ──
+  if (!session) {
     return (
-      <div className="flex flex-col items-center justify-center py-24 animate-fade-in">
+      <div className="flex flex-col items-center justify-center py-16 animate-fade-in max-w-lg mx-auto">
         <div className="w-20 h-20 rounded-3xl bg-surface border border-border/60 flex items-center justify-center mb-6 shadow-sm">
           <ClipboardCheck className="w-9 h-9 text-muted" />
         </div>
         <h2 className="text-xl font-semibold text-foreground">{t('groups.noActiveSession')}</h2>
-        <p className="text-sm text-muted mt-2 text-center max-w-sm">
+        <p className="text-sm text-muted mt-2 text-center">
           {t('groups.startSessionDesc')}
         </p>
-        <Button
-          className="mt-8"
-          size="lg"
-          onClick={() => startSession.mutate()}
-          disabled={startSession.isPending}
-        >
-          {startSession.isPending ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin" />
-              {t('groups.starting')}
-            </>
-          ) : (
-            <>
-              <Play className="w-4 h-4" />
-              {t('groups.startSession')}
-            </>
-          )}
-        </Button>
+
+        {todaySchedules.length > 0 ? (
+          <div className="w-full mt-8 space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted text-center mb-3">
+              {t('groups.todaySchedule')}
+            </p>
+            {todaySchedules.map((slot) => (
+              <button
+                key={slot.id}
+                type="button"
+                onClick={() => startSession.mutate(slot.id)}
+                disabled={startSession.isPending}
+                className="w-full flex items-center justify-between p-4 rounded-xl border border-border/60 bg-card hover:border-accent/40 hover:bg-accent/5 transition-colors text-left"
+              >
+                <div>
+                  <p className="text-sm font-medium text-foreground tabular-nums">
+                    {slot.startTime} – {slot.endTime}
+                  </p>
+                  {slot.notes && <p className="text-xs text-muted mt-0.5">{slot.notes}</p>}
+                </div>
+                <Play className="w-4 h-4 text-accent shrink-0" />
+              </button>
+            ))}
+          </div>
+        ) : (
+          <Button
+            className="mt-8"
+            size="lg"
+            onClick={() => startSession.mutate(undefined)}
+            disabled={startSession.isPending}
+          >
+            {startSession.isPending ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                {t('groups.starting')}
+              </>
+            ) : (
+              <>
+                <Play className="w-4 h-4" />
+                {t('groups.startSession')}
+              </>
+            )}
+          </Button>
+        )}
+
+        {startError && <p className="text-sm text-red-600 mt-4 text-center">{startError}</p>}
       </div>
     )
   }
@@ -131,6 +178,7 @@ export function GroupSessionPage() {
 
   const presentCount = attendances.filter((a) => a.status === 'PRESENT').length
   const absentCount = attendances.filter((a) => a.status === 'ABSENT').length
+  const unpaidCount = attendances.filter((a) => a.status === 'PRESENT' && a.isUnpaid).length
   const unmarkedCount = enrollments.length - presentCount - absentCount
   const totalEnrolled = enrollments.length
 
@@ -172,15 +220,14 @@ export function GroupSessionPage() {
               </div>
             )}
             <div>
-              <p className="font-semibold text-foreground flex items-center gap-2">
+              <p className="font-semibold text-foreground">
                 {isFinished ? t('attendance.finished', 'Session finished') : t('groups.sessionInProgress')}
-                <span className="text-xs font-normal text-muted hidden sm:inline">
-                  <Clock className="w-3 h-3 inline mr-0.5" />
-                  {sessionDate.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
-                </span>
               </p>
-              <p className="text-xs text-muted mt-0.5 sm:hidden">
+              <p className="text-xs text-muted mt-0.5">
+                <Clock className="w-3 h-3 inline mr-0.5" />
                 {sessionDate.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
+                {' · '}
+                {formatSessionTimes(session)}
               </p>
             </div>
           </div>
@@ -231,6 +278,12 @@ export function GroupSessionPage() {
           <p className="text-2xl font-black text-red-500">{absentCount}</p>
           <p className="text-xs font-semibold text-red-500/80 uppercase tracking-wide mt-0.5">
             {t('attendance.absent')}
+          </p>
+        </div>
+        <div className="rounded-xl bg-amber-500/10 border border-amber-500/20 p-3 text-center">
+          <p className="text-2xl font-black text-amber-600 dark:text-amber-400">{unpaidCount}</p>
+          <p className="text-xs font-semibold text-amber-600/80 dark:text-amber-400/80 uppercase tracking-wide mt-0.5">
+            {t('groups.unpaid')}
           </p>
         </div>
         <div className="rounded-xl bg-surface border border-border/60 p-3 text-center">

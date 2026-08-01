@@ -4,10 +4,5 @@ dist
 dist-server
 *.db
 *.db-journal
-.env
 .env.local
 .DS_Store
-receipts/
-uploads/
-*.tmp*
-

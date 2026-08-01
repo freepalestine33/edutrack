@@ -22,7 +22,9 @@ import { GroupStudentsPage } from '@/pages/groups/GroupStudentsPage'
 import { GroupSessionPage } from '@/pages/groups/GroupSessionPage'
 import { GroupSubscriptionsPage } from '@/pages/groups/GroupSubscriptionsPage'
 import { GroupHistoryPage } from '@/pages/groups/GroupHistoryPage'
+import { PlansSelectionPage } from '@/pages/PlansSelectionPage'
 import { useAppStore, applyTheme } from '@/store/app'
+import { LoadingState } from '@/components/PageHeader'
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 30_000, retry: 1 } },
@@ -31,12 +33,15 @@ const queryClient = new QueryClient({
 function LocaleSync() {
   const { i18n } = useTranslation()
   const locale = useAppStore((s) => s.locale)
+  const setLocale = useAppStore((s) => s.setLocale)
 
   useEffect(() => {
-    document.documentElement.dir = locale === 'ar' ? 'rtl' : 'ltr'
-    document.documentElement.lang = locale
-    i18n.changeLanguage(locale)
-  }, [locale, i18n])
+    const active = locale === 'ar' || locale === 'fr' || locale === 'en' ? locale : 'ar'
+    if (active !== locale) setLocale('ar')
+    document.documentElement.dir = active === 'ar' ? 'rtl' : 'ltr'
+    document.documentElement.lang = active
+    i18n.changeLanguage(active)
+  }, [locale, i18n, setLocale])
 
   return null
 }
@@ -69,6 +74,7 @@ function AppRoutes() {
       <Routes>
         <Route path="/onboarding" element={<OnboardingPage />} />
         <Route path="/plans" element={<PlansPage />} />
+        <Route path="/plans-selection" element={<PlansSelectionPage />} />
         <Route path="*" element={<Navigate to="/onboarding" replace />} />
       </Routes>
     )
@@ -79,8 +85,18 @@ function AppRoutes() {
     return (
       <Routes>
         <Route path="/plans" element={<PlansPage />} />
+        <Route path="/plans-selection" element={<PlansSelectionPage />} />
         <Route path="*" element={<Navigate to="/plans" replace />} />
       </Routes>
+    )
+  }
+
+  // Prevent redirect loops while premium status is still loading.
+  if (premium.isLoading) {
+    return (
+      <AppLayout>
+        <LoadingState />
+      </AppLayout>
     )
   }
 
@@ -89,6 +105,7 @@ function AppRoutes() {
     return (
       <Routes>
         <Route path="/plans" element={<PlansPage />} />
+        <Route path="/plans-selection" element={<PlansSelectionPage />} />
         <Route path="/upgrade" element={<Navigate to="/plans" replace />} />
         {role === 'ADMIN' && <Route path="/panel/manage-subscriptions-x99" element={<AdminRequestsPage />} />}
         <Route path="*" element={<Navigate to="/plans" replace />} />
@@ -116,6 +133,7 @@ function AppRoutes() {
         <Route path="/attendance" element={<AttendancePage />} />
         <Route path="/schedule" element={<SchedulePage />} />
         <Route path="/subscriptions" element={<SubscriptionsPage />} />
+        <Route path="/plans-selection" element={<PlansSelectionPage />} />
         <Route path="/finance" element={<FinancePage />} />
         <Route path="/settings" element={<SettingsPage />} />
         {/* Legacy redirects */}

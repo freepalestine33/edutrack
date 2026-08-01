@@ -26,6 +26,7 @@ export function SubscriptionsPage() {
   const { t } = useTranslation()
   const qc = useQueryClient()
   const [showPlanForm, setShowPlanForm] = useState(false)
+  const [editingPlanId, setEditingPlanId] = useState<string | null>(null)
   const [planForm, setPlanForm] = useState(defaultForm)
 
   const { data: subscriptions = [], isLoading: loadingSubs } = useQuery({
@@ -43,8 +44,25 @@ export function SubscriptionsPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['plans'] })
       setShowPlanForm(false)
+      setEditingPlanId(null)
       setPlanForm(defaultForm)
     },
+  })
+
+  const updatePlan = useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: typeof defaultForm }) =>
+      api.updateSubscriptionPlan(id, payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['plans'] })
+      setShowPlanForm(false)
+      setEditingPlanId(null)
+      setPlanForm(defaultForm)
+    },
+  })
+
+  const deletePlan = useMutation({
+    mutationFn: (id: string) => api.deleteSubscriptionPlan(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['plans'] }),
   })
 
   if (loadingSubs || loadingPlans) return <LoadingState />
@@ -55,7 +73,13 @@ export function SubscriptionsPage() {
         title={t('subscriptions.title')}
         description={t('subscriptions.subtitle')}
         action={
-          <Button onClick={() => setShowPlanForm(!showPlanForm)}>
+          <Button
+            onClick={() => {
+              setShowPlanForm(true)
+              setEditingPlanId(null)
+              setPlanForm(defaultForm)
+            }}
+          >
             <Plus className="w-4 h-4" />
             {t('plans.create')}
           </Button>
@@ -68,7 +92,9 @@ export function SubscriptionsPage() {
         {showPlanForm && (
           <Card className="mb-4 animate-fade-in">
             <CardContent className="pt-6">
-              <h3 className="font-medium text-foreground mb-4">{t('plans.newPlan')}</h3>
+              <h3 className="font-medium text-foreground mb-4">
+                {editingPlanId ? t('plans.editPlan') : t('plans.newPlan')}
+              </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="sm:col-span-2">
                   <Label>{t('subscriptions.planName')}</Label>
@@ -121,12 +147,25 @@ export function SubscriptionsPage() {
               </div>
               <div className="flex gap-3 mt-4">
                 <Button
-                  disabled={!planForm.name || !planForm.sessionsCount || createPlan.isPending}
-                  onClick={() => createPlan.mutate(planForm)}
+                  disabled={!planForm.name || !planForm.sessionsCount || createPlan.isPending || updatePlan.isPending}
+                  onClick={() => {
+                    if (editingPlanId) {
+                      updatePlan.mutate({ id: editingPlanId, payload: planForm })
+                    } else {
+                      createPlan.mutate(planForm)
+                    }
+                  }}
                 >
-                  {t('plans.create')}
+                  {editingPlanId ? t('plans.save') : t('plans.create')}
                 </Button>
-                <Button variant="secondary" onClick={() => setShowPlanForm(false)}>
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    setShowPlanForm(false)
+                    setEditingPlanId(null)
+                    setPlanForm(defaultForm)
+                  }}
+                >
                   {t('common.cancel')}
                 </Button>
               </div>
@@ -139,15 +178,47 @@ export function SubscriptionsPage() {
             {plans.map((plan) => (
               <Card key={plan.id} className="hover:card-shadow-lg transition-shadow duration-200">
                 <CardContent className="py-5">
-                  <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-accent-muted flex items-center justify-center shrink-0">
-                      <Package className="w-5 h-5 text-accent" />
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-accent-muted flex items-center justify-center shrink-0">
+                        <Package className="w-5 h-5 text-accent" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-semibold text-foreground">{plan.name}</p>
+                        <p className="text-lg font-semibold text-accent mt-1">
+                          {plan.price ? formatCurrency(plan.price, plan.currency) : '0 DZD'}
+                        </p>
+                      </div>
                     </div>
-                    <div className="min-w-0">
-                      <p className="font-semibold text-foreground">{plan.name}</p>
-                      <p className="text-lg font-semibold text-accent mt-1">
-                        {plan.price ? formatCurrency(plan.price, plan.currency) : '0 DZD'}
-                      </p>
+                    <div className="flex gap-2 items-start">
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => {
+                          setShowPlanForm(true)
+                          setEditingPlanId(plan.id)
+                          setPlanForm({
+                            name: plan.name,
+                            sessionsCount: plan.sessionsCount,
+                            price: plan.price,
+                            attendancePolicy: plan.attendancePolicy,
+                          })
+                        }}
+                      >
+                        {t('plans.edit')}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          if (window.confirm(t('plans.deleteConfirm', { name: plan.name }))) {
+                            deletePlan.mutate(plan.id)
+                          }
+                        }}
+                        disabled={deletePlan.isPending}
+                      >
+                        {t('plans.delete')}
+                      </Button>
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-3 mt-4 pt-4 border-t border-border/40">

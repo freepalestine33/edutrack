@@ -10,6 +10,7 @@ import {
   LayoutGrid,
   Play,
   Trash2,
+  Clock,
 } from 'lucide-react'
 import { api } from '@/lib/api'
 import { cn } from '@/lib/utils'
@@ -57,6 +58,7 @@ export function GroupLayout() {
     { to: 'students', icon: Users, key: 'students' },
     { to: 'subscriptions', icon: CreditCard, key: 'subscriptions' },
     { to: 'schedule', icon: Calendar, key: 'schedule' },
+    { to: 'history', icon: Clock, key: 'history' },
   ]
 
   return (

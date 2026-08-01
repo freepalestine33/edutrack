@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/Button'
 import { Input, Label } from '@/components/ui/Input'
 import { Card, CardContent } from '@/components/ui/Card'
 import { WeekScheduleGrid } from '@/components/WeekScheduleGrid'
-import { DAY_NAMES } from '@/lib/utils'
+import { getDayNames } from '@/lib/utils'
 import type { GroupContext } from './GroupLayout'
 
 export function GroupSchedulePage() {
@@ -17,7 +17,7 @@ export function GroupSchedulePage() {
   const { t } = useTranslation()
   const qc = useQueryClient()
   const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState({ dayOfWeek: 5, startTime: '14:00', endTime: '16:00', notes: '' })
+  const [form, setForm] = useState({ dayOfWeek: 5, startTime: '14:00', endTime: '16:00', notes: '', isPermanent: true })
 
   const addSchedule = useMutation({
     mutationFn: (data: typeof form) => api.addGroupSchedule(groupId!, data),
@@ -25,7 +25,16 @@ export function GroupSchedulePage() {
       qc.invalidateQueries({ queryKey: ['group', groupId] })
       qc.invalidateQueries({ queryKey: ['schedules'] })
       setShowForm(false)
-      setForm({ dayOfWeek: 5, startTime: '14:00', endTime: '16:00', notes: '' })
+      setForm({ dayOfWeek: 5, startTime: '14:00', endTime: '16:00', notes: '', isPermanent: true })
+    },
+  })
+
+  const togglePermanentMutation = useMutation({
+    mutationFn: ({ id, isPermanent }: { id: string; isPermanent: boolean }) =>
+      api.updateSchedule(id, { isPermanent }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['group', groupId] })
+      qc.invalidateQueries({ queryKey: ['schedules'] })
     },
   })
 
@@ -55,13 +64,16 @@ export function GroupSchedulePage() {
         schedules={schedules}
         onAddDay={openAddForDay}
         onDelete={(id) => removeSchedule.mutate(id)}
+        onTogglePermanent={(id, current) =>
+          togglePermanentMutation.mutate({ id, isPermanent: !current })
+        }
       />
 
       {showForm && (
         <Card className="animate-fade-in">
           <CardContent className="pt-6">
             <h3 className="font-medium text-foreground mb-4">
-              {t('schedule.addSessionOn')} {DAY_NAMES[form.dayOfWeek]}
+              {t('schedule.addSessionOn')} {getDayNames()[form.dayOfWeek]}
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
@@ -87,6 +99,18 @@ export function GroupSchedulePage() {
                   onChange={(e) => setForm({ ...form, notes: e.target.value })}
                   placeholder={t('groups.notesPlaceholder')}
                 />
+              </div>
+              <div className="sm:col-span-2 flex items-center gap-3 pt-1">
+                <input
+                  type="checkbox"
+                  id="groupIsPermanent"
+                  checked={form.isPermanent}
+                  onChange={(e) => setForm({ ...form, isPermanent: e.target.checked })}
+                  className="w-4 h-4 rounded border-border text-accent focus:ring-accent accent-accent cursor-pointer"
+                />
+                <label htmlFor="groupIsPermanent" className="text-sm font-medium text-foreground cursor-pointer select-none">
+                  {t('schedule.isPermanent')}
+                </label>
               </div>
             </div>
             <div className="flex gap-3 mt-4">

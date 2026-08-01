@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { api, type Organization } from './api'
+import { api, ApiError, type Organization } from './api'
 
 export interface PremiumState {
   organization?: Organization
@@ -60,10 +60,19 @@ function compute(now: number, org?: Organization): PremiumState {
  * Centralised premium/trial state. The countdown ticks every second so the
  * subscription ends at the exact stored moment (down to the second).
  */
-export function usePremium(): PremiumState {
-  const { data: organization } = useQuery({
+export function usePremium(): PremiumState & { isLoading: boolean } {
+  const { data: organization, isLoading } = useQuery({
     queryKey: ['organization'],
-    queryFn: () => api.getOrganization(),
+    queryFn: async () => {
+      try {
+        return await api.getOrganization()
+      } catch (err) {
+        // If organization not found (404), return undefined so UI can
+        // render a friendly onboarding/plans view instead of an error.
+        if (err instanceof ApiError && (err as ApiError).status === 404) return undefined
+        throw err
+      }
+    },
   })
   const [now, setNow] = useState(() => Date.now())
 
@@ -72,5 +81,5 @@ export function usePremium(): PremiumState {
     return () => window.clearInterval(timer)
   }, [])
 
-  return compute(now, organization)
+  return { ...compute(now, organization), isLoading }
 }

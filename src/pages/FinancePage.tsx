@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { Plus, TrendingUp, TrendingDown, Wallet } from 'lucide-react'
-import { api } from '@/lib/api'
+import { api, openAuthenticatedFile } from '@/lib/api'
 import { Button } from '@/components/ui/Button'
 import { Input, Label, Select } from '@/components/ui/Input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
@@ -205,30 +205,38 @@ export function FinancePage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
-              {data?.payments.map((p) => (
-                <div key={p.id} className="flex items-center justify-between p-3 rounded-xl bg-surface border border-border/30">
-                  <div>
-                    <p className="text-sm font-medium text-foreground">
-                      {p.student.firstName} {p.student.lastName}
-                    </p>
-                    <p className="text-xs text-muted">
-                      {p.type} · {p.method} · {new Date(p.paidAt).toLocaleDateString()}
-                    </p>
-                    <p className="text-xs text-muted mt-1">
-                      {p.receiptUrl ? (
-                        <a href={p.receiptUrl} target="_blank" rel="noreferrer" className="text-accent hover:underline">
-                          {t('finance.viewReceipt')}
-                        </a>
-                      ) : (
-                        t('finance.noReceipt')
-                      )}
-                    </p>
+              {data?.payments?.length ? (
+                data.payments.map((p) => (
+                  <div key={p.id} className="flex items-center justify-between p-3 rounded-xl bg-surface border border-border/30">
+                    <div>
+                      <p className="text-sm font-medium text-foreground">
+                        {p.student.firstName} {p.student.lastName}
+                      </p>
+                      <p className="text-xs text-muted">
+                        {p.type} · {p.method} · {new Date(p.paidAt).toLocaleDateString()}
+                      </p>
+                      <p className="text-xs text-muted mt-1">
+                        {p.receiptUrl ? (
+                          <button
+                            type="button"
+                            onClick={() => openAuthenticatedFile(p.receiptUrl!).catch(() => {})}
+                            className="text-accent hover:underline"
+                          >
+                            {t('finance.viewReceipt')}
+                          </button>
+                        ) : (
+                          t('finance.noReceipt')
+                        )}
+                      </p>
+                    </div>
+                    <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">
+                      +{formatCurrency(p.amount)}
+                    </span>
                   </div>
-                  <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">
-                    +{formatCurrency(p.amount)}
-                  </span>
-                </div>
-              ))}
+                ))
+              ) : (
+                <div className="p-6 text-sm text-muted">{t('finance.noPayments')}</div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -239,19 +247,23 @@ export function FinancePage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
-              {data?.expenses.map((e) => (
-                <div key={e.id} className="flex items-center justify-between p-3 rounded-xl bg-surface border border-border/30">
-                  <div>
-                    <p className="text-sm font-medium text-foreground">{e.category}</p>
-                    <p className="text-xs text-muted">
-                      {e.description} {e.recurring && '· ↻'}
-                    </p>
+              {data?.expenses?.length ? (
+                data.expenses.map((e) => (
+                  <div key={e.id} className="flex items-center justify-between p-3 rounded-xl bg-surface border border-border/30">
+                    <div>
+                      <p className="text-sm font-medium text-foreground">{e.category}</p>
+                      <p className="text-xs text-muted">
+                        {e.description} {e.recurring && '· ↻'}
+                      </p>
+                    </div>
+                    <span className="text-sm font-semibold text-red-600 dark:text-red-400">
+                      -{formatCurrency(e.amount)}
+                    </span>
                   </div>
-                  <span className="text-sm font-semibold text-red-600 dark:text-red-400">
-                    -{formatCurrency(e.amount)}
-                  </span>
-                </div>
-              ))}
+                ))
+              ) : (
+                <div className="p-6 text-sm text-muted">{t('finance.noExpenses')}</div>
+              )}
             </div>
           </CardContent>
         </Card>

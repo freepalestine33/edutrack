@@ -13,12 +13,22 @@ export class ApiError extends Error {
   }
 }
 
-function authHeaders() {
+function authHeaders(): Record<string, string> {
   try {
     const saved = JSON.parse(localStorage.getItem('edutrack-app') || '{}')
     const token = saved?.state?.token
     return token ? { Authorization: `Bearer ${token}` } : {}
   } catch { return {} }
+}
+
+/** Open a protected file (receipt/upload) using the stored auth token. */
+export async function openAuthenticatedFile(url: string) {
+  const res = await fetch(url, { headers: authHeaders() })
+  if (!res.ok) {
+    throw new ApiError(res.status, 'Failed to open file')
+  }
+  const blob = await res.blob()
+  window.open(URL.createObjectURL(blob), '_blank')
 }
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
@@ -32,6 +42,13 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
       localStorage.removeItem('edutrack-app')
       if (window.location.pathname !== '/onboarding') {
         window.location.href = '/onboarding'
+      }
+    } catch {}
+  }
+  if (res.status === 403 && !path.includes('/organization') && !path.includes('/account/start-trial') && !path.includes('/subscription-requests')) {
+    try {
+      if (window.location.pathname !== '/plans' && window.location.pathname !== '/onboarding') {
+        window.location.href = '/plans'
       }
     } catch {}
   }
@@ -65,6 +82,10 @@ export const api = {
   getStudents: () => request<Student[]>('/students'),
   createStudent: (data: CreateStudentPayload) =>
     request<Student>('/students', { method: 'POST', body: JSON.stringify(data) }),
+  deleteStudent: (id: string) =>
+    request<{ ok: boolean; deletedId: string }>(`/students/${id}`, { method: 'DELETE' }),
+  deleteEnrollment: (id: string) =>
+    request<{ ok: boolean; deletedId: string }>(`/enrollments/${id}`, { method: 'DELETE' }),
 
   getGroups: () => request<Group[]>('/classes'),
   // Legacy alias expected by some pages
@@ -77,23 +98,30 @@ export const api = {
     request<{ success: boolean; deletedId: string }>(`/classes/${id}`, { method: 'DELETE' }),
   addGroupSchedule: (groupId: string, data: CreateSchedulePayload) =>
     request<ScheduleItem>(`/classes/${groupId}/schedules`, { method: 'POST', body: JSON.stringify(data) }),
+  updateSchedule: (id: string, data: Partial<CreateSchedulePayload>) =>
+    request<ScheduleItem>(`/schedules/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   deleteSchedule: (id: string) => request<{ ok: boolean }>(`/schedules/${id}`, { method: 'DELETE' }),
   addGroupStudent: (groupId: string, data: CreateGroupStudentPayload) =>
     request<GroupEnrollment>(`/classes/${groupId}/students`, { method: 'POST', body: JSON.stringify(data) }),
   getGroupSubscriptions: (groupId: string) =>
     request<Subscription[]>(`/classes/${groupId}/subscriptions`),
   getGroupSession: (groupId: string) => request<SessionItem | null>(`/classes/${groupId}/session`),
-  startGroupSession: (groupId: string) =>
-    request<SessionItem>(`/classes/${groupId}/session/start`, { method: 'POST' }),
+  startGroupSession: (groupId: string, scheduleId?: string) =>
+    request<SessionItem>(`/classes/${groupId}/session/start`, {
+      method: 'POST',
+      body: scheduleId ? JSON.stringify({ scheduleId }) : undefined,
+    }),
   endGroupSession: (groupId: string) =>
     request<SessionItem>(`/classes/${groupId}/session/end`, { method: 'POST' }),
   renewSubscription: (
     groupId: string,
-    data: { enrollmentId: string; subscriptionId?: string; planId: string },
+    data: { enrollmentId: string; subscriptionId?: string; planId?: string; extraSessions?: number },
   ) => request<Subscription>(`/classes/${groupId}/subscriptions`, { method: 'POST', body: JSON.stringify(data) }),
 
   getTeachers: () => request<User[]>('/teachers'),
   getGroupHistory: (groupId: string) => request<SessionItem[]>(`/classes/${groupId}/history`),
+  deleteGroupHistorySession: (groupId: string, sessionId: string) =>
+    request<{ ok: boolean; deletedId: string }>(`/classes/${groupId}/history/${sessionId}`, { method: 'DELETE' }),
   getSubscriptionPlans: () => request<SubscriptionPlan[]>('/subscription-plans'),
   getSubscriptions: () => request<Subscription[]>('/subscriptions'),
   createSubscriptionRequest: (data: { planId?: string; amount: number; currency?: string }) =>
@@ -104,6 +132,10 @@ export const api = {
   rejectSubscriptionRequest: (id: string, reason?: string) => request<any>(`/subscription-requests/${id}/reject`, { method: 'POST', body: JSON.stringify({ reason }) }),
   createSubscriptionPlan: (data: CreatePlanPayload) =>
     request<SubscriptionPlan>('/subscription-plans', { method: 'POST', body: JSON.stringify(data) }),
+  updateSubscriptionPlan: (id: string, data: CreatePlanPayload) =>
+    request<SubscriptionPlan>(`/subscription-plans/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  deleteSubscriptionPlan: (id: string) =>
+    request<{ ok: boolean; deletedId: string }>(`/subscription-plans/${id}`, { method: 'DELETE' }),
   markAttendance: (data: AttendancePayload) =>
     request<{ attendance: Attendance; subscription: Subscription | null }>('/attendance', {
       method: 'POST',
@@ -207,7 +239,10 @@ export interface Subscription {
 export interface SessionItem {
   id: string
   scheduledAt: string
+  startedAt?: string | null
+  endedAt?: string | null
   status: string
+  schedule?: ScheduleItem | null
   class: Group & { enrollments?: GroupEnrollment[] }
   attendances: Attendance[]
 }
@@ -215,11 +250,11 @@ export interface SessionItem {
 export interface Attendance {
   id: string
   sessionId: string
-  subscriptionId: string | null
   studentId: string
   status: 'PRESENT' | 'ABSENT'
   countedTowardSubscription: boolean
   isDropIn: boolean
+  isUnpaid: boolean
 }
 
 export interface ScheduleItem {
@@ -228,6 +263,7 @@ export interface ScheduleItem {
   startTime: string
   endTime: string
   notes?: string | null
+  isPermanent?: boolean
   class?: Group
   teacher?: User
 }
@@ -305,6 +341,7 @@ export interface CreateSchedulePayload {
   endTime: string
   notes?: string
   teacherId?: string
+  isPermanent?: boolean
 }
 
 export interface CreateGroupStudentPayload {

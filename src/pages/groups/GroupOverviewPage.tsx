@@ -14,7 +14,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
 import { StatusBadge } from '@/components/StatusBadge'
 import { StatCard } from '@/components/StatCard'
-import { DAY_NAMES } from '@/lib/utils'
+import { getDayNames } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 import type { GroupContext } from './GroupLayout'
 
@@ -87,7 +87,7 @@ export function GroupOverviewPage() {
               <div className="space-y-2 mb-4">
                 {todaySchedule.map((s) => (
                   <div key={s.id} className="flex items-center justify-between p-3 rounded-xl bg-surface">
-                    <span className="text-sm font-medium">{DAY_NAMES[s.dayOfWeek]}</span>
+                    <span className="text-sm font-medium">{getDayNames()[s.dayOfWeek]}</span>
                     <span className="text-sm text-muted tabular-nums">{s.startTime} – {s.endTime}</span>
                     {s.notes && <span className="text-xs text-muted">{s.notes}</span>}
                   </div>

@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { prisma } from '../lib/prisma'
-import { requireAuth } from '../middleware/auth'
+import { requireAuthPremium } from '../middleware/auth'
 import { todayRange, latestByEnrollment } from '../lib/utils'
 
 export const dashboardRouter = Router()
@@ -8,7 +8,7 @@ export const dashboardRouter = Router()
 // Re‑export for backward compatibility with files that still import from here
 export { todayRange, latestByEnrollment }
 
-dashboardRouter.get('/dashboard', requireAuth, async (req, res) => {
+dashboardRouter.get('/dashboard', requireAuthPremium, async (req, res) => {
   try {
     const orgId = req.auth!.orgId
     const { start, end } = todayRange()
@@ -26,7 +26,7 @@ dashboardRouter.get('/dashboard', requireAuth, async (req, res) => {
           subject: true,
           schedules: { orderBy: { dayOfWeek: 'asc' } },
           _count: { select: { enrollments: true } },
-          sessions: { where: { scheduledAt: { gte: start, lte: end } }, take: 1 },
+          sessions: { where: { scheduledAt: { gte: start, lte: end }, status: { in: ['in_progress', 'finished'] } }, take: 1 },
         },
         orderBy: { name: 'asc' },
       }),

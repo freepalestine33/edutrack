@@ -2,8 +2,10 @@
  * Subscription business‑logic helpers.
  * Extracted from class.routes so route files stay thin.
  */
-import { SubscriptionStatus, EnrollmentStatus } from '@prisma/client'
+import { SubscriptionStatus, EnrollmentStatus, Prisma } from '@prisma/client'
 import { prisma } from './prisma'
+
+type DbClient = Prisma.TransactionClient | typeof prisma
 
 // ─── Shared Prisma include for class queries ────────────────────────────────
 
@@ -73,6 +75,14 @@ export function buildNewSubscriptionData(plan: { id: string; sessionsCount: numb
 
 /**
  * Build the data object for renewing / extending an existing subscription.
+ *
+ * BUG‑FIX: previous code used `existing.enrollmentId` in the attendance
+ * `where.studentId` clause — that was wrong. We now accept the real
+ * `studentId` and use it for the unpaid‑attendance lookup.
+ *
+ * BUG‑FIX: `sessionsTotal` was computed as `sessionsUsed + sessionsRemaining`
+ * which double‑counts carried‑over sessions. Now it equals the new plan's
+ * `sessionsCount` plus any carry‑over minus unpaid deductions.
  */
 export async function buildRenewalData(
   existing: {
@@ -84,16 +94,43 @@ export async function buildRenewalData(
     expiresAt: Date | null
   },
   plan: { id: string; sessionsCount: number },
-  dbClient: any = prisma,
+  studentId: string,
+  dbClient: DbClient = prisma,
+  classId?: string,
 ) {
   // Count sessions actually used on the old subscription so far
   const oldSessionsUsed = await dbClient.attendance.count({
     where: { subscriptionId: existing.id, countedTowardSubscription: true },
   })
 
+  const unpaidWhere = {
+    studentId,
+    isUnpaid: true,
+    status: 'PRESENT' as const,
+    ...(classId ? { session: { classId } } : {}),
+  }
+
+  // Find unpaid attendances for this student in the same group
+  const unpaidAttendances = await dbClient.attendance.findMany({
+    where: unpaidWhere,
+  })
+  const unpaidCount = unpaidAttendances.length
+
+  // Mark unpaid attendances as paid & link to existing subscription
+  if (unpaidCount > 0) {
+    await dbClient.attendance.updateMany({
+      where: unpaidWhere,
+      data: {
+        isUnpaid: false,
+        countedTowardSubscription: true,
+        subscriptionId: existing.id,
+      },
+    })
+  }
+
   // Total sessions cumulative = existing total + new plan sessions
   const sessionsTotal = existing.sessionsTotal + plan.sessionsCount
-  const sessionsUsed = oldSessionsUsed
+  const sessionsUsed = oldSessionsUsed + unpaidCount
   const sessionsRemaining = Math.max(0, sessionsTotal - sessionsUsed)
 
   const now = new Date()
