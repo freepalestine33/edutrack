@@ -19,6 +19,7 @@ async function main() {
   await prisma.subscription.deleteMany()
   await prisma.enrollment.deleteMany()
   await prisma.subscriptionPlan.deleteMany()
+  await prisma.subscriptionRequest.deleteMany()
   await prisma.class.deleteMany()
   await prisma.student.deleteMany()
   await prisma.subject.deleteMany()
