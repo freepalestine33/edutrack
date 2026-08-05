@@ -14,7 +14,6 @@ attendanceRouter.get('/today-sessions', requireAuthPremium, async (req, res) => 
       where: {
         scheduledAt: { gte: start, lte: end },
         class: { orgId },
-        status: 'in_progress',
       },
       include: {
         schedule: true,

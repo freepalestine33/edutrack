@@ -26,9 +26,9 @@ export function Button({
           'bg-transparent text-accent hover:bg-accent-muted focus:ring-accent':
             variant === 'ghost',
           'bg-danger text-white hover:opacity-90 focus:ring-danger hover:shadow-md': variant === 'danger',
-          'h-8 px-3 text-sm gap-1.5': size === 'sm',
-          'h-10 px-4 text-sm gap-2': size === 'md',
-          'h-12 px-6 text-base gap-2': size === 'lg',
+          'h-10 px-4 text-sm gap-1.5 sm:h-8 sm:px-3': size === 'sm',
+          'h-12 px-5 text-sm gap-2 sm:h-10 sm:px-4': size === 'md',
+          'h-14 px-6 text-base gap-2 sm:h-12 sm:px-6': size === 'lg',
         },
         className,
       )}

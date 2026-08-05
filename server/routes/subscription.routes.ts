@@ -2,7 +2,13 @@ import { Router } from 'express'
 import { AttendancePolicy } from '@prisma/client'
 import { prisma } from '../lib/prisma'
 import { requireAdmin, requireAuth, requireAuthPremium } from '../middleware/auth'
-import { buildNewSubscriptionData, buildRenewalData, withPremium } from '../lib/subscription.utils'
+import {
+  buildNewSubscriptionData,
+  buildRenewalData,
+  attachPriorUnpaidAttendancesToSubscription,
+  computeSubscriptionStatus,
+  withPremium,
+} from '../lib/subscription.utils'
 
 export const subscriptionRouter = Router()
 
@@ -94,6 +100,8 @@ subscriptionRouter.post('/classes/:id/subscriptions', requireAuthPremium, async 
         ? await tx.subscription.findFirst({ where: { id: subscriptionId, enrollmentId } })
         : await tx.subscription.findFirst({ where: { enrollmentId }, orderBy: { createdAt: 'desc' } })
 
+      let subscription = null
+
       if (existingSubscription) {
         const renewalData = await buildRenewalData(
           { ...existingSubscription, enrollmentId },
@@ -102,17 +110,54 @@ subscriptionRouter.post('/classes/:id/subscriptions', requireAuthPremium, async 
           tx,
           enrollment.classId,
         )
-        return tx.subscription.update({
+        subscription = await tx.subscription.update({
           where: { id: existingSubscription.id },
           data: renewalData,
           include: { plan: true, enrollment: { include: { student: true } } },
         })
       } else {
-        return tx.subscription.create({
+        subscription = await tx.subscription.create({
           data: { enrollmentId, ...buildNewSubscriptionData({ id: plan.id, sessionsCount: plan.sessionsCount }) },
           include: { plan: true, enrollment: { include: { student: true } } },
         })
       }
+
+      await tx.payment.create({
+        data: {
+          orgId,
+          studentId: enrollment.studentId,
+          subscriptionId: subscription.id,
+          amount: Number(plan.price ?? 0),
+          currency: plan.currency,
+          method: 'CASH',
+          type: 'SUBSCRIPTION',
+        },
+      })
+
+      const priorUnpaidCount = await attachPriorUnpaidAttendancesToSubscription(
+        enrollment.studentId,
+        enrollment.classId,
+        subscription.id,
+        tx,
+      )
+
+      if (priorUnpaidCount > 0) {
+        const used = await tx.attendance.count({
+          where: { subscriptionId: subscription.id, countedTowardSubscription: true },
+        })
+        const remaining = Math.max(0, subscription.sessionsTotal - used)
+        subscription = await tx.subscription.update({
+          where: { id: subscription.id },
+          data: {
+            sessionsUsed: used,
+            sessionsRemaining: remaining,
+            status: computeSubscriptionStatus(remaining),
+          },
+          include: { plan: true, enrollment: { include: { student: true } } },
+        })
+      }
+
+      return subscription
     })
 
     res.json(subscription)

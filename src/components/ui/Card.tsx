@@ -3,13 +3,14 @@ import { cn } from '@/lib/utils'
 export function Card({
   className,
   children,
+  noHover = false,
   ...props
-}: React.HTMLAttributes<HTMLDivElement>) {
+}: React.HTMLAttributes<HTMLDivElement> & { noHover?: boolean }) {
   return (
     <div
       className={cn(
         'bg-card rounded-2xl border border-border/60 card-shadow transition-all duration-300',
-        'hover:border-accent/30 hover:card-shadow-lg hover:-translate-y-0.5',
+        !noHover && 'hover:border-accent/30 hover:card-shadow-lg hover:-translate-y-0.5',
         className,
       )}
       {...props}
@@ -25,7 +26,7 @@ export function CardHeader({
   ...props
 }: React.HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className={cn('px-6 pt-6 pb-2', className)} {...props}>
+    <div className={cn('px-4 sm:px-6 pt-4 sm:pt-6 pb-2', className)} {...props}>
       {children}
     </div>
   )
@@ -49,7 +50,7 @@ export function CardContent({
   ...props
 }: React.HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className={cn('px-6 pb-6', className)} {...props}>
+    <div className={cn('px-4 sm:px-6 pb-4 sm:pb-6', className)} {...props}>
       {children}
     </div>
   )

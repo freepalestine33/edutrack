@@ -5,7 +5,7 @@ import { Users, CheckCircle2, AlertTriangle, XCircle, ChevronRight, Calendar } f
 import { api } from '@/lib/api'
 import { StatCard, MoneyStat } from '@/components/StatCard'
 import { StatusBadge } from '@/components/StatusBadge'
-import { GlassPanel } from '@/components/ui/GlassPanel'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
 import { PageHeader, LoadingState } from '@/components/PageHeader'
 
 export function DashboardPage() {
@@ -50,8 +50,8 @@ export function DashboardPage() {
             .filter((g) => g.schedules?.some((s) => s.dayOfWeek === today))
             .map((group) => (
               <Link key={group.id} to={`/groups/${group.id}/session`}>
-                <GlassPanel variant="card" className="hover:card-shadow-lg transition-shadow cursor-pointer">
-                  <div className="py-4 flex items-center justify-between">
+                <Card className="hover:card-shadow-lg transition-shadow">
+                  <CardContent className="py-4 flex items-center justify-between">
                     <div>
                       <p className="font-semibold text-foreground">{group.name}</p>
                       <p className="text-xs text-muted flex items-center gap-1 mt-1">
@@ -63,8 +63,8 @@ export function DashboardPage() {
                       </p>
                     </div>
                     <ChevronRight className="w-5 h-5 text-muted" />
-                  </div>
-                </GlassPanel>
+                  </CardContent>
+                </Card>
               </Link>
             ))}
           {!data?.groups.some((g) => g.schedules?.some((s) => s.dayOfWeek === today)) && (
@@ -74,9 +74,11 @@ export function DashboardPage() {
       </section>
 
       {data?.subscriptions && data.subscriptions.length > 0 && (
-        <GlassPanel variant="card" className="p-6">
-          <h3 className="text-lg font-semibold text-foreground mb-4">{t('groups.needsAttention')}</h3>
-          <div className="space-y-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>{t('groups.needsAttention')}</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
             {data.subscriptions.map((sub) => (
               <Link
                 key={sub.id}
@@ -94,8 +96,8 @@ export function DashboardPage() {
                 <StatusBadge status={sub.status} />
               </Link>
             ))}
-          </div>
-        </GlassPanel>
+          </CardContent>
+        </Card>
       )}
     </div>
   )

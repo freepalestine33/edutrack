@@ -170,13 +170,36 @@ export function AttendancePage() {
 
   if (isLoading) return <LoadingState />
 
+  const totalPresent = sessions.reduce(
+    (sum, session) => sum + session.attendances.filter((a) => a.status === 'PRESENT').length,
+    0,
+  )
+
   const activeSessions = sessions.filter((s) => s.status === 'in_progress')
 
   return (
     <div className="space-y-6">
       <PageHeader title={t('attendance.title')} description={t('attendance.today')} />
 
-      {activeSessions.length === 0 && <EmptyState message={t('attendance.noSessions')} />}
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="rounded-3xl border border-border/60 bg-card p-5">
+          <p className="text-sm text-muted">{t('attendance.totalPresent')}</p>
+          <p className="mt-3 text-3xl font-semibold">{totalPresent}</p>
+        </div>
+        <div className="rounded-3xl border border-border/60 bg-card p-5">
+          <p className="text-sm text-muted">{t('attendance.sessionsToday')}</p>
+          <p className="mt-3 text-3xl font-semibold">{sessions.length}</p>
+        </div>
+      </div>
+
+      {sessions.length === 0 && <EmptyState message={t('attendance.noSessions')} />}
+      {sessions.length > 0 && activeSessions.length === 0 && (
+        <Card>
+          <CardContent>
+            <p className="text-sm text-muted">{t('attendance.noActiveSessions')}</p>
+          </CardContent>
+        </Card>
+      )}
 
       {activeSessions.length > 0 && (
         <section className="space-y-0">

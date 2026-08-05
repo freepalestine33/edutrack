@@ -4,8 +4,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { Plus, Users, Calendar, ChevronRight, ClipboardCheck, Trash2 } from 'lucide-react'
 import { api } from '@/lib/api'
-import { GlassPanel, GlassButton } from '@/components/ui/GlassPanel'
+import { Button } from '@/components/ui/Button'
 import { Label, Select } from '@/components/ui/Input'
+import { Card, CardContent } from '@/components/ui/Card'
 import { PageHeader, LoadingState } from '@/components/PageHeader'
 import { getDayNames } from '@/lib/utils'
 
@@ -54,63 +55,65 @@ export function GroupsListPage() {
         title={t('groups.title')}
         description={t('groups.subtitle')}
         action={
-          <GlassButton onClick={() => setShowForm(!showForm)}>
+          <Button onClick={() => setShowForm(!showForm)}>
             <Plus className="w-4 h-4" />
             {t('groups.create')}
-          </GlassButton>
+          </Button>
         }
       />
 
       {showForm && (
-        <GlassPanel variant="card" className="animate-fade-in p-6">
-          <div className="grid gap-4 md:grid-cols-3 mt-1.5">
-            <div>
-              <Label>المستوى</Label>
-              <Select value={level} onChange={(e) => setLevel(e.target.value)}>
-                <option value="">اختر المستوى</option>
-                <option value="ابتدائي">ابتدائي</option>
-                <option value="متوسط">متوسط</option>
-                <option value="ثانوي">ثانوي</option>
-              </Select>
+        <Card className="animate-fade-in">
+          <CardContent className="pt-6">
+            <div className="grid gap-4 md:grid-cols-3 mt-1.5">
+              <div>
+                <Label>المستوى</Label>
+                <Select value={level} onChange={(e) => setLevel(e.target.value)}>
+                  <option value="">اختر المستوى</option>
+                  <option value="ابتدائي">ابتدائي</option>
+                  <option value="متوسط">متوسط</option>
+                  <option value="ثانوي">ثانوي</option>
+                </Select>
+              </div>
+              <div>
+                <Label>السنة</Label>
+                <Select value={year} onChange={(e) => setYear(e.target.value)}>
+                  <option value="">اختر السنة</option>
+                  <option value="الأولى">الأولى</option>
+                  <option value="الثانية">الثانية</option>
+                  <option value="الثالثة">الثالثة</option>
+                  <option value="الرابعة">الرابعة</option>
+                  <option value="الخامسة">الخامسة</option>
+                  <option value="السادسة">السادسة</option>
+                </Select>
+              </div>
+              <div>
+                <Label>الفوج</Label>
+                <Select value={section} onChange={(e) => setSection(e.target.value)}>
+                  <option value="">اختر الفوج</option>
+                  <option value="A">A</option>
+                  <option value="B">B</option>
+                  <option value="C">C</option>
+                  <option value="D">D</option>
+                </Select>
+              </div>
             </div>
-            <div>
-              <Label>السنة</Label>
-              <Select value={year} onChange={(e) => setYear(e.target.value)}>
-                <option value="">اختر السنة</option>
-                <option value="الأولى">الأولى</option>
-                <option value="الثانية">الثانية</option>
-                <option value="الثالثة">الثالثة</option>
-                <option value="الرابعة">الرابعة</option>
-                <option value="الخامسة">الخامسة</option>
-                <option value="السادسة">السادسة</option>
-              </Select>
-            </div>
-            <div>
-              <Label>الفوج</Label>
-              <Select value={section} onChange={(e) => setSection(e.target.value)}>
-                <option value="">اختر الفوج</option>
-                <option value="A">A</option>
-                <option value="B">B</option>
-                <option value="C">C</option>
-                <option value="D">D</option>
-              </Select>
-            </div>
-          </div>
 
-          <div className="mt-4 rounded-xl border border-border/60 bg-surface px-3 py-3 text-sm">
-            <p className="text-xs uppercase tracking-wide text-muted">اسم المجموعة</p>
-            <p className="mt-1 font-medium text-foreground">{generatedName || '...'} </p>
-          </div>
+            <div className="mt-4 rounded-xl border border-border/60 bg-surface px-3 py-3 text-sm">
+              <p className="text-xs uppercase tracking-wide text-muted">اسم المجموعة</p>
+              <p className="mt-1 font-medium text-foreground">{generatedName || '...'} </p>
+            </div>
 
-          <div className="flex gap-3 mt-4">
-            <GlassButton disabled={!level || !year || !section || createGroup.isPending} onClick={() => createGroup.mutate()}>
-              {t('common.save')}
-            </GlassButton>
-            <GlassButton variant="default" onClick={() => setShowForm(false)}>
-              {t('common.cancel')}
-            </GlassButton>
-          </div>
-        </GlassPanel>
+            <div className="flex gap-3 mt-4">
+              <Button disabled={!level || !year || !section || createGroup.isPending} onClick={() => createGroup.mutate()}>
+                {t('common.save')}
+              </Button>
+              <Button variant="secondary" onClick={() => setShowForm(false)}>
+                {t('common.cancel')}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       <div className="grid gap-4 md:grid-cols-2">
@@ -120,8 +123,8 @@ export function GroupsListPage() {
 
           return (
             <Link key={group.id} to={`/groups/${group.id}`} className="block group">
-              <GlassPanel variant="card" className="h-full hover:card-shadow-lg transition-all duration-200 group-hover:border-accent/40 cursor-pointer">
-                <div className="py-5">
+              <Card className="h-full hover:card-shadow-lg transition-all duration-200 group-hover:border-accent/40">
+                <CardContent className="py-5">
                   <div className="flex items-start justify-between">
                     <div>
                       <p className="text-xs font-semibold text-accent uppercase tracking-wide">
@@ -180,8 +183,8 @@ export function GroupsListPage() {
                         ))}
                     </div>
                   )}
-                </div>
-              </GlassPanel>
+                </CardContent>
+              </Card>
             </Link>
           )
         })}

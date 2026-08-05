@@ -26,7 +26,7 @@
 :root {
   --bg: #f5f5f7;
   --fg: #1d1d1f;
-  --muted: #86868b;
+  --muted: #6e6e73;
   --border: #d2d2d7;
   --card: #ffffff;
   --sidebar: #fbfbfd;
@@ -72,6 +72,13 @@ html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   color-scheme: light;
+  font-size: 16px;
+}
+
+@media (max-width: 640px) {
+  html {
+    font-size: 18px;
+  }
 }
 
 html.dark {

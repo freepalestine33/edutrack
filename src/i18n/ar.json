@@ -151,7 +151,10 @@
     "dropIn": "جلسة منفردة",
     "needsRenewal": "يحتاج تجديد",
     "finished": "منتهية",
-    "unmarked": "غير محدد"
+    "unmarked": "غير محدد",
+    "totalPresent": "عدد الحاضرين",
+    "sessionsToday": "جلسات اليوم",
+    "noActiveSessions": "لا توجد جلسات جارية الآن"
   },
   "subscriptions": {
     "title": "الاشتراكات والباقات",
@@ -402,7 +405,11 @@
     "profile": "الملف الشخصي",
     "organization": "المؤسسة",
     "orgType": "نوع المؤسسة",
-    "logout": "تسجيل الخروج"
+    "logout": "تسجيل الخروج",
+    "manageSubscriptions": "إدارة الاشتراكات والمالية",
+    "subscriptions": "الاشتراكات",
+    "finance": "المالية",
+    "upgrade": "الترقية"
   },
   "status": {
     "ACTIVE": "نشط",

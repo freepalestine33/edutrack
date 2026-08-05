@@ -13,6 +13,7 @@ import { PlansPage } from '@/pages/PlansPage'
 import { SubscriptionsPage } from '@/pages/SubscriptionsPage'
 import { SettingsPage } from '@/pages/SettingsPage'
 import { AdminRequestsPage } from '@/pages/AdminRequestsPage'
+import { UpgradePage } from '@/pages/UpgradePage'
 import { usePremium } from '@/lib/premium'
 import { GroupsListPage } from '@/pages/groups/GroupsListPage'
 import { GroupLayout } from '@/pages/groups/GroupLayout'
@@ -118,7 +119,7 @@ function AppRoutes() {
       <Routes>
         <Route path="/" element={<DashboardPage />} />
         <Route path="/plans" element={<PlansPage />} />
-        <Route path="/upgrade" element={<Navigate to="/plans" replace />} />
+        <Route path="/upgrade" element={<UpgradePage />} />
         <Route path="/panel/manage-subscriptions-x99" element={role === 'ADMIN' ? <AdminRequestsPage /> : <Navigate to="/" replace />} />
         <Route path="/groups" element={<GroupsListPage />} />
         <Route path="/groups/:groupId" element={<GroupLayout />}>
