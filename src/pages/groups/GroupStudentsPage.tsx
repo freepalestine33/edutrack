@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, Link } from 'react-router-dom'
 import { useOutletContext } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
@@ -12,6 +12,7 @@ import {
   CreditCard,
   RefreshCw,
   Trash2,
+  Package,
 } from 'lucide-react'
 import { api } from '@/lib/api'
 import { invalidateStudentData } from '@/lib/invalidate'
@@ -111,6 +112,15 @@ export function GroupStudentsPage() {
                     <option key={p.id} value={p.id}>{p.name} — {p.sessionsCount} sessions</option>
                   ))}
                 </Select>
+                {plans.length === 0 && (
+                  <Link
+                    to="/subscriptions"
+                    className="inline-flex items-center gap-1 text-xs font-medium text-accent hover:underline mt-1.5"
+                  >
+                    <Package className="w-3.5 h-3.5" />
+                    {t('plans.createFirstPlan', 'لم تقم بإنشاء أي باقة بعد؟ اضغط هنا لإنشاء باقة جديدة')}
+                  </Link>
+                )}
               </div>
             </div>
             <div className="flex gap-3 mt-4">

@@ -152,7 +152,7 @@ export function SettingsPage() {
                   <ArrowUpRight className="w-4 h-4" />
                 </Button>
               </Link>
-              <Link to="/plans">
+              <Link to="/upgrade">
                 <Button variant="secondary" className="w-full justify-between">
                   <span>{t('settings.upgrade')}</span>
                   <ArrowUpRight className="w-4 h-4" />
@@ -200,7 +200,7 @@ export function SettingsPage() {
               <p className="text-sm text-muted">
                 {t('upgrade.desc')}
               </p>
-              <Link to="/plans">
+              <Link to="/upgrade">
                 <Button className="mt-4 w-full">{t('settings.upgrade')}</Button>
               </Link>
             </CardContent>
