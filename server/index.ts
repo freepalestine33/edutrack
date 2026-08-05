@@ -64,9 +64,30 @@ app.use('/api', reminderRouter)
 // Global error handler — must be last
 app.use(globalErrorHandler)
 
+import { prisma } from './lib/prisma'
+import { ADMIN_EMAILS } from './middleware/auth'
+
+async function ensureAdminUser() {
+  try {
+    for (const email of ADMIN_EMAILS) {
+      const user = await prisma.user.findUnique({ where: { email } })
+      if (user && user.role !== 'ADMIN') {
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { role: 'ADMIN' },
+        })
+        console.log(`[Startup] Auto-updated ${email} to ADMIN role`)
+      }
+    }
+  } catch (err) {
+    console.warn('[Startup] Skipped ensureAdminUser DB check:', err instanceof Error ? err.message : err)
+  }
+}
+
 async function startServer() {
   await ensureReceiptDir()
   await ensureUploadDir()
+  await ensureAdminUser()
   app.listen(PORT, () => {
     console.log(`Edutrack API running on port ${PORT}`)
   })

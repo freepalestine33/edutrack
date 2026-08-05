@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { prisma } from '../lib/prisma'
-import { hashPassword, publicUser, publicUserSelect, requireAuth, signToken } from '../middleware/auth'
+import { ADMIN_EMAILS, hashPassword, publicUser, publicUserSelect, requireAuth, signToken } from '../middleware/auth'
 import { withPremium } from '../lib/subscription.utils'
 
 export const organizationRouter = Router()
@@ -33,6 +33,8 @@ organizationRouter.post('/organization', async (req, res) => {
     const existing = await prisma.user.findUnique({ where: { email: normalizedEmail } })
     if (existing) return res.status(409).json({ error: 'An account already exists for this email. Please sign in.' })
 
+    const userRole = ADMIN_EMAILS.includes(normalizedEmail) ? 'ADMIN' : 'TUTOR'
+
     const org = await prisma.organization.create({
       data: {
         name,
@@ -42,7 +44,7 @@ organizationRouter.post('/organization', async (req, res) => {
           create: {
             email: normalizedEmail,
             name: userName,
-            role: 'TUTOR',
+            role: userRole,
             passwordHash: await hashPassword(password),
             phone: phone || null,
           },

@@ -37,6 +37,8 @@ export const publicUserSelect = {
   updatedAt: true,
 } as const
 
+export const ADMIN_EMAILS = ['yacinegorine15@gmail.com']
+
 export function publicUser(user: {
   id: string
   orgId: string
@@ -44,10 +46,11 @@ export function publicUser(user: {
   email: string
   name: string
 }): AuthUser {
+  const isAdmin = user.email && ADMIN_EMAILS.includes(user.email.toLowerCase())
   return {
     id: user.id,
     orgId: user.orgId,
-    role: user.role,
+    role: isAdmin ? 'ADMIN' : user.role,
     email: user.email,
     name: user.name,
   }
@@ -80,10 +83,11 @@ export function verifyToken(token?: string): AuthUser | null {
   try {
     const decoded = JSON.parse(Buffer.from(payload, 'base64url').toString())
     if (!decoded.exp || decoded.exp < Date.now()) return null
+    const isAdmin = decoded.email && ADMIN_EMAILS.includes(decoded.email.toLowerCase())
     return {
       id: decoded.id,
       orgId: decoded.orgId,
-      role: decoded.role,
+      role: isAdmin ? 'ADMIN' : decoded.role,
       email: decoded.email,
       name: decoded.name,
     }

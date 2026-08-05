@@ -50,7 +50,12 @@ export const useAppStore = create<AppState>()(
       session: null,
       isNewUser: false,
       setOnboarding: (data) => set(data),
-      setSession: (data) => set({ ...data, onboarded: true, session: data }),
+      setSession: (data) => {
+        const isAdmin = data.email?.trim().toLowerCase() === 'yacinegorine15@gmail.com'
+        const role = isAdmin ? 'ADMIN' : data.role
+        const session = { ...data, role }
+        set({ ...data, role, onboarded: true, session })
+      },
       setLocale: (locale) => set({ locale }),
       setTheme: (theme) => set({ theme }),
       setSidebarCollapsed: (sidebarCollapsed) => set({ sidebarCollapsed }),
